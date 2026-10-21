@@ -1,18 +1,18 @@
-/// Two-way sync core (M7): version vectors, hybrid logical clocks and the
-/// per-kind merge rules from the approved design (docs/decisions.md):
-///
-/// - projects & skills: a dominating version wins; **concurrent** edits
-///   resolve deterministically — the record with the greater HLC stays
-///   canonical and the other becomes a conflict copy with a
-///   deterministic id, so both devices converge to identical state
-///   (a real 3-way merge additionally needs the common base; without one
-///   the conflict copy is the decided fallback, never a silent overwrite).
-/// - journal events: append-only union (deduplicated by event id).
-/// - settings: per-key last-writer-wins by hybrid logical clock.
-/// - deletions: tombstones. A dominating tombstone deletes; a tombstone
-///   concurrent with an edit loses (the edit resurrects the entity) —
-///   deletion must never silently eat a concurrent edit. Deleted entities
-///   are reported so the app can keep them in the 30-day trash.
+// Two-way sync core (M7): version vectors, hybrid logical clocks and the
+// per-kind merge rules from the approved design (docs/decisions.md):
+//
+// - projects & skills: a dominating version wins; **concurrent** edits
+//   resolve deterministically — the record with the greater HLC stays
+//   canonical and the other becomes a conflict copy with a
+//   deterministic id, so both devices converge to identical state
+//   (a real 3-way merge additionally needs the common base; without one
+//   the conflict copy is the decided fallback, never a silent overwrite).
+// - journal events: append-only union (deduplicated by event id).
+// - settings: per-key last-writer-wins by hybrid logical clock.
+// - deletions: tombstones. A dominating tombstone deletes; a tombstone
+//   concurrent with an edit loses (the edit resurrects the entity) —
+//   deletion must never silently eat a concurrent edit. Deleted entities
+//   are reported so the app can keep them in the 30-day trash.
 
 /// Vector-clock comparison outcome.
 enum VectorOrder { less, greater, equal, concurrent }
