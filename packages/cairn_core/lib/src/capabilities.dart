@@ -1,11 +1,18 @@
-// Compute overflow (M8): capability-scored, per-step routing between
-// symmetric peer devices. The governing rule (user-corrected design):
-// a step runs LOCALLY unless this device cannot satisfy the step's
-// hard requirements — only then does it overflow to the best eligible
-// paired peer. There is no fixed RAM threshold; requirements are
-// declared per step and matched against measured capabilities. If no
-// device is eligible, the step is blocked with the unmet requirements
-// listed — never silently downgraded.
+// Compute overflow (M8, owner-corrected 2026-10-21): multi-directional
+// load balancing between symmetric peer devices. Any device may serve
+// any other; steps are SPLIT across the capable devices instead of
+// piling onto one. The governing rules:
+//  1. Hard requirements gate eligibility — a device that cannot
+//     satisfy a step never gets it (no fixed RAM threshold; if nobody
+//     is eligible the step is blocked with the unmet requirements
+//     listed, never silently downgraded).
+//  2. Link priority: this device itself, then the local network,
+//     then the internet (e.g. a Tailscale route) LAST — a nearer tier
+//     wins unless it cannot satisfy the step at all.
+//  3. Inside the best eligible tier, steps spread evenly: the pick is
+//     the device with the highest capability score per unit of load
+//     already assigned in this run, so consecutive steps alternate
+//     instead of stacking on the strongest machine.
 
 /// What a device can offer, measured and exchanged between peers.
 class DeviceCapabilities {
@@ -95,9 +102,8 @@ List<String> unmetRequirements(
   return unmet;
 }
 
-/// A relative capability score for an ELIGIBLE device — used only to
-/// rank eligible peers against each other (never to pull a step away
-/// from an eligible local device).
+/// A relative capability score for an ELIGIBLE device — the
+/// balancer divides it by assigned load to spread steps evenly.
 int capabilityScore(DeviceCapabilities caps) {
   var score = caps.cpuCores * 100 + (caps.ramMb ~/ 512) * 10;
   if (caps.hasGpu) score += 500;
@@ -105,19 +111,66 @@ int capabilityScore(DeviceCapabilities caps) {
   return score;
 }
 
+/// How a device is reached, in the owner's priority order: the device
+/// itself, the local network, then the internet — always last.
+enum LinkKind { local, lan, internet }
+
+/// Classifies a peer endpoint host into a [LinkKind]: loopback is
+/// local; private LAN ranges are lan; everything else — including
+/// Tailscale's 100.64.0.0/10 range and public addresses — counts as
+/// internet (it leaves the local network, so it is the last resort).
+LinkKind classifyHost(String host) {
+  final h = host.trim().toLowerCase();
+  if (h == 'localhost' || h == '::1') return LinkKind.local;
+  final parts = h.split('.');
+  if (parts.length == 4) {
+    final nums = parts.map(int.tryParse).toList();
+    if (nums.every((n) => n != null)) {
+      final a = nums[0]!, b = nums[1]!;
+      if (a == 127) return LinkKind.local;
+      if (a == 10 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168)) {
+        return LinkKind.lan;
+      }
+      return LinkKind.internet;
+    }
+  }
+  return LinkKind.internet;
+}
+
+/// One device that could take a step: its capabilities, how it is
+/// reached, and how much load this run has already given it.
+class DeviceCandidate {
+  const DeviceCandidate({
+    required this.caps,
+    required this.link,
+    this.load = 0,
+  });
+
+  final DeviceCapabilities caps;
+  final LinkKind link;
+
+  /// Steps already assigned to this device in the current run (or
+  /// currently in flight) — the balancer spreads against this.
+  final int load;
+}
+
 /// Where a step will run, and why.
 class RouteDecision {
-  const RouteDecision.local(this.reason)
+  const RouteDecision.local(this.reason, {this.link = LinkKind.local})
       : targetDeviceId = null,
         unmet = const [];
-  const RouteDecision.peer(this.targetDeviceId, this.reason)
+  const RouteDecision.peer(this.targetDeviceId, this.reason, {this.link})
       : unmet = const [];
   const RouteDecision.blocked(this.unmet, this.reason)
-      : targetDeviceId = null;
+      : targetDeviceId = null,
+        link = null;
 
   /// Null when the step stays local (or is blocked).
   final String? targetDeviceId;
   final String reason;
+
+  /// The link tier of the chosen device (null when blocked).
+  final LinkKind? link;
 
   /// For blocked decisions: the requirements no device could meet.
   final List<String> unmet;
@@ -126,41 +179,97 @@ class RouteDecision {
   bool get isBlocked => unmet.isNotEmpty;
 }
 
-/// The overflow router. Pure and deterministic.
-class OverflowRouter {
-  const OverflowRouter();
+/// The multi-directional load balancer. Pure and deterministic.
+class LoadBalancer {
+  const LoadBalancer();
 
   RouteDecision decide({
     required StepRequirements requirements,
-    required DeviceCapabilities local,
-    required List<DeviceCapabilities> peers,
+    required List<DeviceCandidate> candidates,
   }) {
-    final localUnmet = unmetRequirements(requirements, local);
-    if (localUnmet.isEmpty) {
-      return const RouteDecision.local(
-          'local device satisfies the step requirements');
+    final eligible = <DeviceCandidate>[];
+    List<String>? requesterUnmet;
+    for (final c in candidates) {
+      final unmet = unmetRequirements(requirements, c.caps);
+      if (c.link == LinkKind.local && requesterUnmet == null) {
+        requesterUnmet = unmet;
+      }
+      if (unmet.isEmpty) eligible.add(c);
     }
-
-    // Overflow: rank eligible peers by capability score.
-    final eligible = [
-      for (final peer in peers)
-        if (unmetRequirements(requirements, peer).isEmpty) peer,
-    ]..sort((a, b) => capabilityScore(b).compareTo(capabilityScore(a)));
-
-    if (eligible.isNotEmpty) {
-      final best = eligible.first;
-      return RouteDecision.peer(
-        best.deviceId,
-        'local cannot satisfy (${localUnmet.join('; ')}); '
-        'overflow to ${best.deviceId} (score ${capabilityScore(best)})',
+    if (eligible.isEmpty) {
+      return RouteDecision.blocked(
+        requesterUnmet ??
+            (candidates.isEmpty
+                ? const ['no candidate devices']
+                : unmetRequirements(requirements, candidates.first.caps)),
+        'no device satisfies the step requirements',
       );
     }
 
-    // Nobody can run it: report what the LOCAL device lacked (the
-    // actionable list) and say plainly that peers could not either.
-    return RouteDecision.blocked(
-      localUnmet,
-      'no paired device satisfies the step requirements either',
-    );
+    // Priority tiers: the local network (this device + LAN peers)
+    // first, the internet last — a step leaves the local network only
+    // when nothing on it can satisfy the step. Inside the best tier,
+    // spread evenly: highest capability per unit of assigned load.
+    int tierOf(DeviceCandidate c) =>
+        c.link == LinkKind.internet ? 1 : 0;
+    var bestTier = 1;
+    for (final c in eligible) {
+      if (tierOf(c) < bestTier) bestTier = tierOf(c);
+    }
+    final pool = [
+      for (final c in eligible)
+        if (tierOf(c) == bestTier) c,
+    ]..sort((a, b) {
+        final ea = capabilityScore(a.caps) / (1 + a.load);
+        final eb = capabilityScore(b.caps) / (1 + b.load);
+        if (eb != ea) return eb.compareTo(ea);
+        final byScore =
+            capabilityScore(b.caps).compareTo(capabilityScore(a.caps));
+        if (byScore != 0) return byScore;
+        if (a.load != b.load) return a.load.compareTo(b.load);
+        return a.caps.deviceId.compareTo(b.caps.deviceId);
+      });
+    final winner = pool.first;
+    final tierName = bestTier == 0 ? 'local network' : 'internet';
+    final reason = 'tier $tierName; load-balanced pick '
+        '${winner.caps.deviceId} (score ${capabilityScore(winner.caps)}, '
+        'load ${winner.load}) among ${pool.length} eligible in tier';
+    if (winner.link == LinkKind.local) {
+      return RouteDecision.local(reason, link: winner.link);
+    }
+    return RouteDecision.peer(winner.caps.deviceId, reason,
+        link: winner.link);
+  }
+
+  /// Plans a whole batch: each decision feeds its assignment back as
+  /// load for the next, so the batch spreads evenly by construction.
+  List<RouteDecision> decideAll({
+    required List<StepRequirements> steps,
+    required List<DeviceCandidate> candidates,
+  }) {
+    final loads = <String, int>{
+      for (final c in candidates) c.caps.deviceId: c.load,
+    };
+    final decisions = <RouteDecision>[];
+    for (final step in steps) {
+      final current = [
+        for (final c in candidates)
+          DeviceCandidate(
+            caps: c.caps,
+            link: c.link,
+            load: loads[c.caps.deviceId] ?? c.load,
+          ),
+      ];
+      final decision = decide(requirements: step, candidates: current);
+      decisions.add(decision);
+      final target = decision.isLocal
+          ? current
+              .where((c) => c.link == LinkKind.local)
+              .map((c) => c.caps.deviceId)
+              .firstOrNull
+          : decision.targetDeviceId;
+      if (target != null) loads[target] = (loads[target] ?? 0) + 1;
+    }
+    return decisions;
   }
 }

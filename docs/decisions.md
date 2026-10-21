@@ -33,6 +33,13 @@ explicit approval first.
   resources, load, battery/thermal, link) — no fixed RAM threshold. Default is
   local execution; overflow carries context, files (hash-verified), settings
   and the same permission policy, and the destination re-validates everything.
+  **Superseded in part by the owner's correction (2026-10-21, v1.1):**
+  dispatch is multi-directional load balancing, not phone→PC overflow —
+  any device may serve any other and steps split evenly across capable
+  devices (capability score per unit of assigned load); link priority is
+  local network first (this device + LAN peers), then speed, and the
+  internet (e.g. Tailscale routes) LAST. Hard requirements still gate
+  eligibility, and the destination still re-validates everything.
 
 ## Owner's implementation conditions (2026-10-21)
 

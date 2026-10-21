@@ -327,21 +327,25 @@ class _DevicesScreenState extends State<DevicesScreen> {
         _showStatus('دستگاه مقابل توانمندی منتشر نمی‌کند.');
         return;
       }
-      const router = OverflowRouter();
+      const balancer = LoadBalancer();
       final local = _localCapabilities();
-      final heavyRam = router.decide(
+      final candidates = [
+        DeviceCandidate(caps: local, link: LinkKind.local),
+        DeviceCandidate(caps: caps, link: classifyHost(host)),
+      ];
+      final heavyRam = balancer.decide(
         requirements: const StepRequirements(minRamMb: 16384),
-        local: local,
-        peers: [caps],
+        candidates: candidates,
       );
-      final gpuStep = router.decide(
+      final gpuStep = balancer.decide(
         requirements: const StepRequirements(needsGpu: true),
-        local: local,
-        peers: [caps],
+        candidates: candidates,
       );
       String verdict(RouteDecision d) => d.isBlocked
           ? 'مسدود: ${d.unmet.join('؛ ')}'
-          : (d.isLocal ? 'محلی اجرا می‌شود' : 'سرریز به دستگاه مقابل');
+          : (d.isLocal
+              ? 'روی همین دستگاه اجرا می‌شود'
+              : 'روی دستگاه مقابل اجرا می‌شود (تقسیم بار)');
       _showStatus(
         'توانمندی‌های ${peer.identity.displayName}: '
         '${caps.cpuCores} هسته، ${caps.ramMb}MB RAM، '

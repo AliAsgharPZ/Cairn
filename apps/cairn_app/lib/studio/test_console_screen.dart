@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
+import 'package:cairn_sync/cairn_sync.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/tokens.dart';
+import 'device_identity.dart';
 import 'provider_factory.dart';
 import 'provider_settings.dart';
 
@@ -24,6 +27,8 @@ class TestConsoleScreen extends StatefulWidget {
     this.onOpenSettings,
     this.skillRegistry,
     this.modelRegistry,
+    this.seedStore,
+    this.baseDir,
   });
 
   final AgentProject? project;
@@ -40,6 +45,12 @@ class TestConsoleScreen extends StatefulWidget {
   /// configs); null disables that adapter in this context.
   final ModelRegistryStore? modelRegistry;
 
+  /// Identity + storage for multi-device load balancing (paired
+  /// devices, declared specs). Null disables balancing in this
+  /// context; the plain local registry is used instead.
+  final SeedStore? seedStore;
+  final Directory? baseDir;
+
   @override
   State<TestConsoleScreen> createState() => _TestConsoleScreenState();
 }
@@ -54,6 +65,10 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   String? _configError;
   CancelToken? _cancelToken;
   Timer? _poller;
+
+  /// Multi-directional load balancing for this run's tool steps.
+  bool _balance = true;
+  String? _balanceNote;
 
   @override
   void dispose() {
@@ -141,10 +156,13 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
       }
     });
 
+    final balanced = await _prepareBalancedRegistry();
+    if (mounted) setState(() => _balanceNote = balanced?.note);
+
     final orchestrator = Orchestrator(
       provider: buildProvider(config, widget.keyStore,
           modelRegistry: widget.modelRegistry),
-      registry: widget.registry,
+      registry: balanced?.registry ?? widget.registry,
       journal: journal,
       skillRegistry: widget.skillRegistry,
     );
@@ -162,6 +180,11 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
         setState(() => _configError = 'خطای غیرمنتظره: $e');
       }
     } finally {
+      if (balanced != null) {
+        for (final client in balanced.clients) {
+          await client.close();
+        }
+      }
       _poller?.cancel();
       if (mounted) {
         setState(() {
@@ -170,6 +193,98 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
         });
       }
     }
+  }
+
+  /// Builds the run's effective tool registry with multi-directional
+  /// load balancing: every tool that a reachable paired peer also
+  /// offers is wrapped so each call is placed by the LoadBalancer —
+  /// any device may serve any other, steps split across the capable
+  /// devices, local network first and internet last. Returns null
+  /// when balancing is off or no peer is reachable; the plain local
+  /// registry then runs the agent, unchanged.
+  Future<({ToolRegistry registry, List<OverflowClient> clients, String note})?>
+      _prepareBalancedRegistry() async {
+    if (!_balance || widget.seedStore == null || widget.baseDir == null) {
+      return null;
+    }
+    final identity =
+        await DeviceIdentityService(widget.seedStore!).loadOrCreate();
+    final paired = await PairedDevicesStore(widget.baseDir!).list();
+    if (paired.isEmpty) return null;
+    final specs = await DeviceSpecsStore(widget.baseDir!).load();
+    final localCaps = DeviceCapabilities(
+      deviceId: identity.deviceId,
+      cpuCores: Platform.numberOfProcessors,
+      ramMb: specs.ramMb,
+      freeDiskMb: specs.freeDiskMb,
+      hasGpu: specs.hasGpu,
+      toolIds: widget.registry.all.map((t) => t.id).toSet(),
+    );
+    final clients = <String, OverflowClient>{};
+    final peerCaps = <String, DeviceCapabilities>{};
+    final peerHosts = <String, String>{};
+    for (final peer in paired) {
+      if (peer.endpoints.isEmpty) continue;
+      final host = peer.endpoints.first;
+      try {
+        final client = await connectOverflow(
+          host: host,
+          port: 47801,
+          local: identity,
+          peer: peer,
+        ).timeout(const Duration(seconds: 5));
+        final caps = await client
+            .fetchCapabilities()
+            .timeout(const Duration(seconds: 5));
+        if (caps == null) {
+          await client.close();
+          continue;
+        }
+        clients[caps.deviceId] = client;
+        peerCaps[caps.deviceId] = caps;
+        peerHosts[caps.deviceId] = host;
+      } catch (_) {
+        // Unreachable peer: simply not a candidate for this run.
+      }
+    }
+    if (clients.isEmpty) return null;
+    final tracker = LoadTracker();
+    Future<List<DeviceCandidate>> candidates() async => [
+          DeviceCandidate(
+            caps: localCaps,
+            link: LinkKind.local,
+            load: tracker.of(identity.deviceId),
+          ),
+          for (final e in peerCaps.entries)
+            DeviceCandidate(
+              caps: e.value,
+              link: classifyHost(peerHosts[e.key]!),
+              load: tracker.of(e.key),
+            ),
+        ];
+    final tools = <Tool>[
+      for (final tool in widget.registry.all)
+        if (peerCaps.values.any((c) => c.toolIds.contains(tool.id)))
+          LoadBalancedTool(
+            inner: tool,
+            localDeviceId: identity.deviceId,
+            candidates: candidates,
+            tracker: tracker,
+            executeRemote: (deviceId, input) async {
+              final reply = await clients[deviceId]!.invoke(tool.id, input);
+              return ToolResult(ok: reply.ok, output: reply.output);
+            },
+          )
+        else
+          tool,
+    ];
+    return (
+      registry: ToolRegistry(tools),
+      clients: clients.values.toList(),
+      note: 'تقسیم بار روشن است: گام‌های ابزار بین این دستگاه و '
+          '${clients.length} دستگاه جفت‌شده پخش می‌شوند '
+          '(اول شبکهٔ محلی، اینترنت آخر).',
+    );
   }
 
   @override
@@ -242,6 +357,19 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
             ),
           ),
           const SizedBox(height: CairnSpacing.sm),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('تقسیم بار بین دستگاه‌های جفت‌شده'),
+            subtitle: Text(
+              _balanceNote ??
+                  'گام‌های ابزار بین این دستگاه و دستگاه‌های جفت‌شده‌ات '
+                      'پخش می‌شن — هر دستگاهی می‌تونه به بقیه کمک کنه؛ '
+                      'اول شبکهٔ محلی، اینترنت آخرین گزینه‌ست.',
+            ),
+            value: _balance,
+            onChanged:
+                _running ? null : (v) => setState(() => _balance = v),
+          ),
           Row(
             children: [
               FilledButton.icon(

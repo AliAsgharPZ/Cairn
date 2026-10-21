@@ -236,6 +236,8 @@ class _StudioShellState extends State<StudioShell> {
             onOpenSettings: () => _goTo(4),
             skillRegistry: SkillRegistry(_skills),
             modelRegistry: _modelRegistry,
+            seedStore: widget.seedStore,
+            baseDir: widget.store.baseDir,
           ),
         ),
         _KeepAlivePage(

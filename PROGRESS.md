@@ -203,6 +203,18 @@ Last updated: 2026-10-21
   RemoteTools into the test console's registry for live peer routing
   during agent runs. Optional self-hosted relay stays deferred by the
   approved design (LAN + Tailscale cover v1).
+- 🔁 **Owner correction (2026-10-21, v1.1) — implemented:** the
+  local-first OverflowRouter is replaced by a multi-directional
+  **LoadBalancer** (cairn_core): any device may serve any other, steps
+  split evenly across capable devices (score per unit of assigned
+  load), link tiers = local network first, internet last
+  (`classifyHost`: loopback local, private ranges LAN, Tailscale
+  100.64/10 + public = internet). Live in the test console:
+  `LoadBalancedTool` (cairn_runtime) wraps tools that reachable peers
+  also offer; the console connects to paired peers at run start,
+  fetches capabilities, balances per call with a shared LoadTracker,
+  and closes the sessions at run end — the M8 follow-up above is
+  closed. Tests: core load-balancer 7, runtime balanced-tool 2.
 ## M9 — Model-creation & training pathway + security hardening ✅
 
 - ✅ Training core (`packages/cairn_training`, pure Dart, **13/13
