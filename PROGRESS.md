@@ -123,7 +123,7 @@ Last updated: 2026-10-21
   and a skills manager dialog (create with name/description/
   instructions/tool chips, delete); the test console hands the
   installed SkillRegistry to the orchestrator.
-## M7 — Pairing + two-way sync + conflict resolution 🔵
+## M7 — Pairing + two-way sync + conflict resolution ✅
 
 - ✅ Sync core (`cairn_core/sync.dart`, pure Dart, deterministic):
   VersionVector (increment/merge/compare with true concurrency
@@ -205,3 +205,12 @@ state hardware limits instead of pretending foundation-scale training.
   and delivered to the owner via a direct download link on 2026-10-21.
   The Windows build therefore exists and runs the same studio code;
   the Named Pipe Tool Host wiring remains the last M5 item.
+- ✅ **M7 complete**: the Devices screen replaced the roadmap panel —
+  identity bootstrap (seed in platform secure storage; stable device
+  id), display name, pairing by pasted offer + SAS compare + confirm,
+  paired-device list with per-device host + «سینک کن» (buildRecords →
+  syncWithPeer → applyResult with an honest report), the sync-server
+  toggle (port 47800, paired devices only), and the sync trash count.
+  Identity/paired/profile stores covered by 3 app tests (CI). QR
+  rendering of the offer is a display nicety deferred past v1 — the
+  offer text itself is the pairing payload.

@@ -5,6 +5,7 @@ import 'package:cairn_tools/cairn_tools.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'studio/device_identity.dart';
 import 'studio/project_store.dart';
 import 'studio/provider_settings.dart';
 import 'studio/skill_store.dart';
@@ -20,6 +21,7 @@ class CairnApp extends StatelessWidget {
     ProviderSettingsStore? settingsStore,
     ApiKeyStore? keyStore,
     SkillStore? skillStore,
+    SeedStore? seedStore,
   })  : registry = registry ??
             ToolRegistry([
               ...BuiltInTools.all(),
@@ -32,13 +34,16 @@ class CairnApp extends StatelessWidget {
         // Tests may omit the key store (in-memory); main() always passes the
         // platform secure store.
         keyStore = keyStore ?? MemoryApiKeyStore(),
-        skillStore = skillStore ?? SkillStore(store.baseDir);
+        skillStore = skillStore ?? SkillStore(store.baseDir),
+        // Tests use the in-memory seed store; main() passes the secure one.
+        seedStore = seedStore ?? MemorySeedStore();
 
   final ProjectStore store;
   final ToolRegistry registry;
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
   final SkillStore skillStore;
+  final SeedStore seedStore;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +58,7 @@ class CairnApp extends StatelessWidget {
         settingsStore: settingsStore,
         keyStore: keyStore,
         skillStore: skillStore,
+        seedStore: seedStore,
       ),
     );
   }
@@ -68,5 +74,6 @@ Future<void> main() async {
     store: ProjectStore(cairnDir),
     settingsStore: ProviderSettingsStore(cairnDir),
     keyStore: SecureApiKeyStore(),
+    seedStore: SecureSeedStore(),
   ));
 }

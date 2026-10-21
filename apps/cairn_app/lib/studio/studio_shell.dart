@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../ui/cairn_theme.dart';
 import '../ui/tokens.dart';
 import 'agent_editor_screen.dart';
+import 'device_identity.dart';
+import 'devices_screen.dart';
 import 'project_store.dart';
 import 'projects_screen.dart';
 import 'provider_settings.dart';
@@ -25,6 +27,7 @@ class StudioShell extends StatefulWidget {
     required this.settingsStore,
     required this.keyStore,
     required this.skillStore,
+    required this.seedStore,
   });
 
   final ProjectStore store;
@@ -32,6 +35,7 @@ class StudioShell extends StatefulWidget {
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
   final SkillStore skillStore;
+  final SeedStore seedStore;
 
   @override
   State<StudioShell> createState() => _StudioShellState();
@@ -115,11 +119,11 @@ class _StudioShellState extends State<StudioShell> {
           skillRegistry: SkillRegistry(_skills),
         );
       case 3:
-        return const _RoadmapPanel(
-          title: 'دستگاه‌ها و سینک',
-          milestone: 'M7',
-          detail: 'جفت‌سازی امن و سینک دوطرفه بین اندروید و ویندوز '
-              'در مرحلهٔ M7 ساخته می‌شود.',
+        return DevicesScreen(
+          projects: widget.store,
+          skills: widget.skillStore,
+          baseDir: widget.store.baseDir,
+          seedStore: widget.seedStore,
         );
       default:
         return SettingsScreen(
@@ -181,40 +185,3 @@ class _StudioShellState extends State<StudioShell> {
   }
 }
 
-/// An honest "not built yet" panel for a destination whose milestone has
-/// not landed. It never pretends to be the feature itself.
-class _RoadmapPanel extends StatelessWidget {
-  const _RoadmapPanel(
-      {required this.title, required this.milestone, required this.detail});
-
-  final String title;
-  final String milestone;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(CairnSpacing.xxl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.headlineSmall),
-                const SizedBox(height: CairnSpacing.xs),
-                Text('مرحلهٔ ساخت: $milestone',
-                    style: theme.textTheme.labelLarge),
-                const SizedBox(height: CairnSpacing.sm),
-                Text(detail, style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
