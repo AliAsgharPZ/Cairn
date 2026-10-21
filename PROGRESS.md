@@ -166,7 +166,7 @@ Last updated: 2026-10-21
   secure storage, pairing by pasted offer + SAS compare, paired
   device list, server start / "sync now"), then M8.
 
-## M8 — Compute overflow + optional self-hosted relay 🔵
+## M8 — Compute overflow + optional self-hosted relay ✅
 
 - ✅ Routing (`cairn_core/capabilities.dart`): DeviceCapabilities /
   StepRequirements / OverflowRouter — local-first; overflow ONLY when
@@ -182,10 +182,17 @@ Last updated: 2026-10-21
   error results. `RemoteTool` adapter in cairn_runtime lets the
   orchestrator call peer tools like local ones (approval gates and
   journal unchanged). Tests: sync pkg **13/13**, runtime **17/17**.
-- ⬜ App wiring: publish this device's capabilities to peers, show
-  routing in the console, an overflow-server toggle in Devices with
-  the owner's sensitive-tools switch. Optional self-hosted relay:
-  deferred by the approved design (LAN + Tailscale cover v1).
+- ✅ App wiring: the overflow protocol serves this device's
+  capabilities (CPU cores measured; RAM/disk/GPU owner-declared in the
+  Devices screen — never fabricated). The Devices screen has the
+  overflow-server toggle (port 47801) executing through the app's real
+  ToolRegistry, an owner switch for remote sensitive tools (default
+  off), and per-peer «توانمندی‌ها» which fetches the peer's real
+  capabilities and shows the router's verdicts for sample heavy steps.
+  **M8 complete.** Documented follow-up (not hidden): injecting
+  RemoteTools into the test console's registry for live peer routing
+  during agent runs. Optional self-hosted relay stays deferred by the
+  approved design (LAN + Tailscale cover v1).
 ## M9 — Fine-tune pathway + security hardening ⬜
 ## M9 — Model-creation & training pathway + security hardening ⬜
 

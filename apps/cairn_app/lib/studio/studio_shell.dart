@@ -124,6 +124,7 @@ class _StudioShellState extends State<StudioShell> {
           skills: widget.skillStore,
           baseDir: widget.store.baseDir,
           seedStore: widget.seedStore,
+          registry: widget.registry,
         );
       default:
         return SettingsScreen(

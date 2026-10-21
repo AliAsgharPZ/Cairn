@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cairn_core/cairn_core.dart';
+
 import 'framing.dart';
 import 'identity.dart';
 import 'pairing.dart';
@@ -99,10 +101,15 @@ class OverflowServerSession {
     required this.sensitiveToolIds,
     required this.handler,
     this.allowSensitiveRemote = false,
+    this.localCapabilities,
   });
 
   final DeviceKeyPair local;
   final List<PairedDevice> allowedPeers;
+
+  /// This device's capabilities, served to paired peers on request so
+  /// their routers can decide with real numbers.
+  final DeviceCapabilities? localCapabilities;
 
   /// Tools this device offers for remote execution at all.
   final Set<String> allowedToolIds;
@@ -131,6 +138,13 @@ class OverflowServerSession {
       // Invocation loop until the peer disconnects.
       while (await iterator.moveNext()) {
         final message = iterator.current;
+        if (message['type'] == 'capabilities') {
+          send({
+            'type': 'capabilities',
+            'capabilities': localCapabilities?.toJson(),
+          });
+          continue;
+        }
         if (message['type'] != 'invoke') continue;
         final callId = message['callId'];
         final toolId = message['toolId'] as String;
@@ -192,6 +206,22 @@ class OverflowClient {
     return OverflowClient._(iterator, send);
   }
 
+  /// Asks the peer for its capabilities (for routing decisions).
+  /// Null when the peer does not publish any.
+  Future<DeviceCapabilities?> fetchCapabilities() async {
+    _send({'type': 'capabilities'});
+    if (!await _iterator.moveNext()) {
+      throw StateError('overflow session closed during capabilities');
+    }
+    final message = _iterator.current;
+    if (message['type'] != 'capabilities') {
+      throw StateError('overflow protocol error: expected capabilities');
+    }
+    final raw = message['capabilities'];
+    if (raw == null) return null;
+    return DeviceCapabilities.fromJson((raw as Map).cast<String, Object?>());
+  }
+
   /// Invokes [toolId] on the peer. A refusal by the peer's policy is a
   /// normal (ok == false) reply, not an exception.
   Future<OverflowToolReply> invoke(
@@ -233,6 +263,7 @@ class OverflowServer {
     required Set<String> sensitiveToolIds,
     required OverflowToolHandler handler,
     bool allowSensitiveRemote = false,
+    DeviceCapabilities? localCapabilities,
     int port = 47801,
   }) async {
     final server = await ServerSocket.bind(InternetAddress.anyIPv4, port);
@@ -245,6 +276,7 @@ class OverflowServer {
         sensitiveToolIds: sensitiveToolIds,
         handler: handler,
         allowSensitiveRemote: allowSensitiveRemote,
+        localCapabilities: localCapabilities,
       );
       try {
         await session.run(socket, socket);

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_sync/cairn_sync.dart';
 import 'package:test/test.dart';
 
@@ -73,6 +74,39 @@ void main() {
       final allowed = await openClient.invoke('train.run', {});
       expect(allowed.ok, isTrue);
       await openClient.close();
+    });
+
+    test('the peer serves its capabilities for routing decisions',
+        () async {
+      final a2b = StreamController<List<int>>();
+      final b2a = StreamController<List<int>>();
+      final server = OverflowServerSession(
+        local: pc,
+        allowedPeers: [paired(phone)],
+        allowedToolIds: {'echo'},
+        sensitiveToolIds: const {},
+        localCapabilities: DeviceCapabilities(
+          deviceId: pc.deviceId,
+          cpuCores: 16,
+          ramMb: 32768,
+          freeDiskMb: 500000,
+          hasGpu: true,
+          toolIds: const {'echo'},
+        ),
+        handler: (_, __) async =>
+            const OverflowToolReply(ok: true, output: 'x'),
+      );
+      unawaited(server.run(a2b.stream, b2a.sink));
+      final client = await OverflowClient.connect(b2a.stream, a2b.sink,
+          local: phone, peer: paired(pc));
+      final caps = await client.fetchCapabilities();
+      expect(caps, isNotNull);
+      expect(caps!.ramMb, 32768);
+      expect(caps.hasGpu, isTrue);
+      // …and invocations still work on the same connection.
+      final reply = await client.invoke('echo', {});
+      expect(reply.ok, isTrue);
+      await client.close();
     });
 
     test('an unpaired stranger cannot even complete the handshake',

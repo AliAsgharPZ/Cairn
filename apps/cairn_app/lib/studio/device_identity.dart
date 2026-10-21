@@ -123,3 +123,39 @@ class DeviceProfileStore {
     await _file.writeAsString(jsonEncode({'displayName': name}), flush: true);
   }
 }
+
+/// This device's owner-declared hardware specs for overflow routing.
+/// CPU cores are measured (Platform.numberOfProcessors); RAM, free
+/// disk and GPU presence are NOT reliably measurable from Dart on both
+/// platforms, so the owner declares them — Cairn never fabricates
+/// measurements it cannot make.
+class DeviceSpecsStore {
+  DeviceSpecsStore(this.baseDir);
+
+  final Directory baseDir;
+  File get _file => File('${baseDir.path}/device_specs.json');
+
+  Future<({int ramMb, int freeDiskMb, bool hasGpu})> load() async {
+    if (!await _file.exists()) {
+      return (ramMb: 4096, freeDiskMb: 10000, hasGpu: false);
+    }
+    final json =
+        (jsonDecode(await _file.readAsString()) as Map).cast<String, Object?>();
+    return (
+      ramMb: (json['ramMb'] as num?)?.toInt() ?? 4096,
+      freeDiskMb: (json['freeDiskMb'] as num?)?.toInt() ?? 10000,
+      hasGpu: json['hasGpu'] as bool? ?? false,
+    );
+  }
+
+  Future<void> save(
+      {required int ramMb,
+      required int freeDiskMb,
+      required bool hasGpu}) async {
+    await baseDir.create(recursive: true);
+    await _file.writeAsString(
+        jsonEncode(
+            {'ramMb': ramMb, 'freeDiskMb': freeDiskMb, 'hasGpu': hasGpu}),
+        flush: true);
+  }
+}

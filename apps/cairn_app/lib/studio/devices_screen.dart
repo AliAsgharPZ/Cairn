@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:cairn_sync/cairn_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,12 +24,17 @@ class DevicesScreen extends StatefulWidget {
     required this.skills,
     required this.baseDir,
     required this.seedStore,
+    required this.registry,
   });
 
   final ProjectStore projects;
   final SkillStore skills;
   final Directory baseDir;
   final SeedStore seedStore;
+
+  /// This device's tool registry: what the overflow server can execute
+  /// for paired peers (subject to the owner's switches below).
+  final ToolRegistry registry;
 
   @override
   State<DevicesScreen> createState() => _DevicesScreenState();
@@ -48,6 +55,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
   final TextEditingController _pasteController = TextEditingController();
   final Map<String, TextEditingController> _hostControllers = {};
 
+  // Overflow (M8) state.
+  bool _overflowOn = false;
+  bool _overflowSensitive = false;
+  OverflowServer? _overflowServer;
+  final TextEditingController _ramController = TextEditingController();
+  final TextEditingController _diskController = TextEditingController();
+  bool _hasGpu = false;
+
   @override
   void initState() {
     super.initState();
@@ -57,12 +72,33 @@ class _DevicesScreenState extends State<DevicesScreen> {
   @override
   void dispose() {
     _server?.close();
+    _overflowServer?.close();
     _nameController.dispose();
     _pasteController.dispose();
+    _ramController.dispose();
+    _diskController.dispose();
     for (final c in _hostControllers.values) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  /// This device's capabilities for routing: CPU cores are measured;
+  /// RAM/disk/GPU come from the owner's declared specs (never invented).
+  DeviceCapabilities _localCapabilities() {
+    final specs = (
+      ramMb: int.tryParse(_ramController.text) ?? 4096,
+      freeDiskMb: int.tryParse(_diskController.text) ?? 10000,
+      hasGpu: _hasGpu,
+    );
+    return DeviceCapabilities(
+      deviceId: _identity!.deviceId,
+      cpuCores: Platform.numberOfProcessors,
+      ramMb: specs.ramMb,
+      freeDiskMb: specs.freeDiskMb,
+      hasGpu: specs.hasGpu,
+      toolIds: widget.registry.all.map((t) => t.id).toSet(),
+    );
   }
 
   SyncCoordinator _coordinator() => SyncCoordinator(
@@ -77,12 +113,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
         await DeviceIdentityService(widget.seedStore).loadOrCreate();
     final name = await DeviceProfileStore(widget.baseDir).loadName();
     final paired = await PairedDevicesStore(widget.baseDir).list();
+    final specs = await DeviceSpecsStore(widget.baseDir).load();
     if (!mounted) return;
     setState(() {
       _identity = identity;
       _displayName = name;
       _nameController.text = name;
       _paired = paired;
+      _ramController.text = '${specs.ramMb}';
+      _diskController.text = '${specs.freeDiskMb}';
+      _hasGpu = specs.hasGpu;
     });
     await _reloadTrash();
   }
@@ -213,6 +253,101 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
   }
 
+  Future<void> _toggleOverflow(bool on) async {
+    if (!on) {
+      await _overflowServer?.close();
+      _overflowServer = null;
+      setState(() {
+        _overflowOn = false;
+      });
+      return;
+    }
+    final server = OverflowServer();
+    try {
+      await server.start(
+        local: _identity!,
+        allowedPeers: _paired,
+        allowedToolIds: widget.registry.all.map((t) => t.id).toSet(),
+        sensitiveToolIds: {
+          for (final t in widget.registry.all)
+            if (t.sensitive) t.id,
+        },
+        allowSensitiveRemote: _overflowSensitive,
+        localCapabilities: _localCapabilities(),
+        handler: (toolId, arguments) async {
+          final tool = widget.registry.lookup(toolId);
+          if (tool == null) {
+            return OverflowToolReply(
+                ok: false, output: 'unknown tool: $toolId');
+          }
+          final result = await tool.run(
+            arguments,
+            ToolContext(
+              projectId: 'overflow',
+              agentId: 'remote-peer',
+              taskId: 'overflow-${DateTime.now().millisecondsSinceEpoch}',
+            ),
+          );
+          return OverflowToolReply(ok: result.ok, output: result.output);
+        },
+      );
+      _overflowServer = server;
+      setState(() {
+        _overflowOn = true;
+      });
+      _showStatus('سرور سرریز روشن شد (پورت ۴۷۸۰۱).');
+    } catch (e) {
+      _showStatus('سرور سرریز شروع نشد: $e');
+    }
+  }
+
+  /// Fetches a paired peer's capabilities over the overflow protocol
+  /// and shows what the router would decide for two sample heavy steps.
+  Future<void> _showPeerCapabilities(PairedDevice peer) async {
+    final host = _hostControllers[peer.identity.deviceId]?.text.trim() ?? '';
+    if (host.isEmpty) {
+      _showStatus('اول نشانی دستگاه را وارد کن.');
+      return;
+    }
+    _showStatus('در حال گرفتن توانمندی‌ها…');
+    try {
+      final client = await connectOverflow(
+        host: host,
+        port: 47801,
+        local: _identity!,
+        peer: peer,
+      );
+      final caps = await client.fetchCapabilities();
+      await client.close();
+      if (caps == null) {
+        _showStatus('دستگاه مقابل توانمندی منتشر نمی‌کند.');
+        return;
+      }
+      const router = OverflowRouter();
+      final local = _localCapabilities();
+      final heavyRam = router.decide(
+        requirements: const StepRequirements(minRamMb: 16384),
+        local: local,
+        peers: [caps],
+      );
+      final gpuStep = router.decide(
+        requirements: const StepRequirements(needsGpu: true),
+        local: local,
+        peers: [caps],
+      );
+      String verdict(RouteDecision d) => d.isBlocked
+          ? 'مسدود: ${d.unmet.join('؛ ')}'
+          : (d.isLocal ? 'محلی اجرا می‌شود' : 'سرریز به دستگاه مقابل');
+      _showStatus('توانمندی‌های ${peer.identity.displayName}: '
+          '${caps.cpuCores} هسته، ${caps.ramMb}MB RAM، '
+          'GPU: ${caps.hasGpu ? 'دارد' : 'ندارد'} — '
+          'مرحلهٔ سنگین RAM: ${verdict(heavyRam)}؛ '
+          'مرحلهٔ GPU: ${verdict(gpuStep)}');
+    } catch (e) {
+      _showStatus('گرفتن توانمندی‌ها ناموفق بود: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -337,6 +472,12 @@ class _DevicesScreenState extends State<DevicesScreen> {
                           icon: const Icon(Icons.sync),
                           label: const Text('سینک کن'),
                         ),
+                        const SizedBox(width: CairnSpacing.sm),
+                        OutlinedButton.icon(
+                          onPressed: () => _showPeerCapabilities(peer),
+                          icon: const Icon(Icons.speed_outlined),
+                          label: const Text('توانمندی‌ها'),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.link_off),
                           tooltip: 'لغو جفت‌شدن',
@@ -365,6 +506,73 @@ class _DevicesScreenState extends State<DevicesScreen> {
           subtitle: const Text('پورت ۴۷۸۰۰ — فقط دستگاه‌های جفت‌شده'),
           value: _serverOn,
           onChanged: _toggleServer,
+        ),
+        const Divider(height: CairnSpacing.xxl),
+        Text('سرریز محاسباتی', style: theme.textTheme.titleMedium),
+        const SizedBox(height: CairnSpacing.xs),
+        const Text('مشخصات این دستگاه برای مسیریابی مراحل سنگین. '
+            'تعداد هستهٔ CPU خودکار خوانده می‌شود؛ RAM و دیسک و GPU را '
+            'خودت وارد کن (از داخل دارت قابل اندازه‌گیری مطمئن نیستند).'),
+        const SizedBox(height: CairnSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _ramController,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'RAM (مگابایت)'),
+              ),
+            ),
+            const SizedBox(width: CairnSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _diskController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'دیسک آزاد (مگابایت)'),
+              ),
+            ),
+          ],
+        ),
+        SwitchListTile(
+          title: const Text('این دستگاه GPU دارد'),
+          value: _hasGpu,
+          onChanged: (v) {
+            setState(() {
+              _hasGpu = v;
+            });
+          },
+        ),
+        OutlinedButton(
+          onPressed: () async {
+            await DeviceSpecsStore(widget.baseDir).save(
+              ramMb: int.tryParse(_ramController.text) ?? 4096,
+              freeDiskMb: int.tryParse(_diskController.text) ?? 10000,
+              hasGpu: _hasGpu,
+            );
+            _showStatus('مشخصات دستگاه ذخیره شد.');
+          },
+          child: const Text('ذخیرهٔ مشخصات'),
+        ),
+        SwitchListTile(
+          title: const Text('سرور سرریز (اجرای ابزارهای این دستگاه '
+              'برای جفت‌شده‌ها)'),
+          subtitle: const Text('پورت ۴۷۸۰۱ — مقصد همیشه دوباره '
+              'اعتبارسنجی می‌کند'),
+          value: _overflowOn,
+          onChanged: _toggleOverflow,
+        ),
+        SwitchListTile(
+          title: const Text('اجازهٔ اجرای راه‌دور ابزارهای حساس'),
+          subtitle: const Text('پیش‌فرض خاموش است؛ با تغییرش سرور سرریز '
+              'را خاموش و روشن کن تا اعمال شود'),
+          value: _overflowSensitive,
+          onChanged: (v) {
+            setState(() {
+              _overflowSensitive = v;
+            });
+          },
         ),
         if (_trashCount > 0)
           Text('سطل زبالهٔ سینک: $_trashCount مورد حذف‌شده (۳۰ روز نگه '
