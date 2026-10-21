@@ -172,20 +172,32 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Wrap (not Row): the header must never overflow on narrow
+          // surfaces — CI's 800px test viewport overflowed by 189px
+          // when the import button joined the row (run #28).
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: CairnSpacing.sm,
+            runSpacing: CairnSpacing.sm,
             children: [
               Text('پروژه‌های ایجنت', style: theme.textTheme.headlineMedium),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: _importProject,
-                icon: const Icon(Icons.file_upload_outlined),
-                label: const Text('وارد کردن'),
-              ),
-              const SizedBox(width: CairnSpacing.sm),
-              FilledButton.icon(
-                onPressed: _createProject,
-                icon: const Icon(Icons.add),
-                label: const Text('پروژهٔ جدید'),
+              Wrap(
+                spacing: CairnSpacing.sm,
+                runSpacing: CairnSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _importProject,
+                    icon: const Icon(Icons.file_upload_outlined),
+                    label: const Text('وارد کردن'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _createProject,
+                    icon: const Icon(Icons.add),
+                    label: const Text('پروژهٔ جدید'),
+                  ),
+                ],
               ),
             ],
           ),
