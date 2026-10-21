@@ -8,4 +8,5 @@ export 'src/ids.dart';
 export 'src/journal.dart';
 export 'src/project.dart';
 export 'src/project_archive.dart';
+export 'src/skill.dart';
 export 'src/task_state.dart';

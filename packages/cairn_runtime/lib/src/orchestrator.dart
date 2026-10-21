@@ -75,12 +75,18 @@ class Orchestrator {
     required this.registry,
     Journal? journal,
     this.budget = const ExecutionBudget(),
+    this.skillRegistry,
   }) : journal = journal ?? Journal();
 
   final ModelProvider provider;
   final ToolRegistry registry;
   final Journal journal;
   final ExecutionBudget budget;
+
+  /// Skills available to agents on this device (blueprints reference them
+  /// by id). An agent referencing an unknown skill fails loudly at run
+  /// start rather than silently losing the skill.
+  final SkillRegistry? skillRegistry;
 
   late final LanguagePipeline _pipeline = LanguagePipeline(provider);
   late final Planner _planner = Planner(provider);
@@ -132,11 +138,32 @@ class Orchestrator {
         taskId: task.id, data: normalized.toJson());
 
     // ── Planning ───────────────────────────────────────────────────────────
+    // Resolve the agent's skills first: an unknown skill id fails the run
+    // loudly instead of silently dropping the skill.
+    final List<Skill> skills;
+    try {
+      skills = agent.skillIds.isEmpty
+          ? const []
+          : (skillRegistry ??
+                  (throw const FormatException(
+                      'agent references skills but no SkillRegistry is configured')))
+              .requireAll(agent.skillIds);
+    } on FormatException catch (e) {
+      _transition(task, TaskStatus.failed);
+      return _fail(task, 'Skill resolution failed: ${e.message}');
+    }
+    final allowedToolIds = <String>{
+      for (final t in agent.tools) t.toolId,
+      for (final s in skills) ...s.toolIds,
+    };
     final List<TaskStep> steps;
     try {
       tracker.consumeModelCall();
       steps = await _planner.plan(
-          agent: agent, instruction: normalized, registry: registry);
+          agent: agent,
+          instruction: normalized,
+          registry: registry,
+          skills: skills);
     } on BudgetExceededException catch (e) {
       _transition(task, TaskStatus.failed);
       return _fail(task, 'Budget exceeded during planning: ${e.kind}');
@@ -215,6 +242,7 @@ class Orchestrator {
         approvalGate: approvalGate,
         context: context,
         outputs: outputs,
+        allowedToolIds: allowedToolIds,
       );
       if (stepError != null) {
         _transition(task, TaskStatus.failed);
@@ -274,6 +302,7 @@ class Orchestrator {
     required ApprovalGate? approvalGate,
     required ToolContext context,
     required Map<String, String> outputs,
+    required Set<String> allowedToolIds,
   }) async {
     var attempt = 0;
     while (true) {
@@ -297,6 +326,7 @@ class Orchestrator {
           approvalGate: approvalGate,
           context: context,
           outputs: outputs,
+          allowedToolIds: allowedToolIds,
         );
         step.status = StepStatus.succeeded;
         outputs[step.id] = output;
@@ -335,14 +365,16 @@ class Orchestrator {
     required ApprovalGate? approvalGate,
     required ToolContext context,
     required Map<String, String> outputs,
+    required Set<String> allowedToolIds,
   }) async {
     if (step.kind == 'tool') {
       final tool = registry.lookup(step.toolId!);
       if (tool == null) {
         throw StateError('Tool "${step.toolId}" is not available on this device');
       }
-      if (!agent.tools.any((t) => t.toolId == tool.id)) {
-        throw StateError('Tool "${tool.id}" is not declared by this agent');
+      if (!allowedToolIds.contains(tool.id)) {
+        throw StateError(
+            'Tool "${tool.id}" is not declared by this agent or its skills');
       }
       if (tool.requiresNetwork && !agent.policy.allowNetwork) {
         throw StateError(

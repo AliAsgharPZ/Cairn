@@ -21,19 +21,36 @@ class Planner {
     required AgentBlueprint agent,
     required NormalizedInstruction instruction,
     required ToolRegistry registry,
+    List<Skill> skills = const [],
   }) async {
-    final declaredTools = agent.tools.map((t) => t.toolId).toSet();
-    final toolList = agent.tools
-        .map((t) {
-          final tool = registry.lookup(t.toolId);
-          return '- ${t.toolId}: ${tool?.description ?? '(unavailable on this device)'}';
-        })
-        .join('\n');
+    // Effective declared tools: the blueprint's own tools plus the tools
+    // contributed by its attached skills (attaching a skill is the user's
+    // explicit declaration of those tools).
+    final declaredTools = <String>{
+      for (final t in agent.tools) t.toolId,
+      for (final s in skills) ...s.toolIds,
+    };
+    final agentToolIds = agent.tools.map((t) => t.toolId).toSet();
+    final toolList = <String>[
+      for (final t in agent.tools)
+        '- ${t.toolId}: ${registry.lookup(t.toolId)?.description ?? '(unavailable on this device)'}',
+      for (final s in skills)
+        for (final id in s.toolIds)
+          if (!agentToolIds.contains(id))
+            '- $id: ${registry.lookup(id)?.description ?? '(unavailable on this device)'} (via skill "${s.name}")',
+    ].join('\n');
+    final skillInstructions = skills
+        .where((s) => s.instructions.trim().isNotEmpty)
+        .map((s) => '## Skill: ${s.name}\n${s.instructions}')
+        .join('\n\n');
 
     final res = await provider.complete(
       agent.model,
       ModelRequest(messages: [
         ChatMessage(ChatRole.system, agent.systemPrompt),
+        if (skillInstructions.isNotEmpty)
+          ChatMessage(ChatRole.system,
+              'The agent has these skills attached. Follow their instructions when relevant:\n$skillInstructions'),
         ChatMessage(
           ChatRole.system,
           'You are the planning stage of an agent runtime. Break the goal into '

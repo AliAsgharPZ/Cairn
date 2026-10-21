@@ -108,7 +108,15 @@ Last updated: 2026-10-21
   corrupt JSON all refused). Wired into `ProjectStore` (exports folder;
   id collisions import as a copy, never an overwrite). 5 archive tests;
   cairn_core now 27/27. App UI buttons for export/import: next.
-- ⬜ Skills registry + grants UI.
+- 🔵 Skills (engine done): `Skill` model + `SkillRegistry` in cairn_core
+  (JSON, validation; 3 tests — core now 30/30). Runtime integration:
+  the planner receives attached skills' instructions and their tools
+  count as declared (planner + execution guards both use the effective
+  set); an unknown skill id fails the run loudly. Policy/approval gates
+  still apply to skill tools unchanged. 3 runtime tests (grant, reject
+  without skill, unknown id) — runtime now 14/14. Pure-Dart total: 80.
+  Remaining: SkillStore persistence + skills UI in the studio and the
+  agent editor's skill picker.
 ## M7 — Pairing + two-way sync + conflict resolution ⬜
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜
