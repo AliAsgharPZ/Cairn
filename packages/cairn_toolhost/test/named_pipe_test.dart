@@ -26,6 +26,14 @@ void main() {
     final serverChannelFuture = listenNamedPipe(pipeName);
     final serveFuture = serverChannelFuture.then((channel) =>
         ToolHostServer(tools: registry).serve(channel.stream, channel.sink));
+    // The server channel must be closed explicitly at the end: an
+    // unclosed channel leaves its reader/writer isolates blocked in
+    // Win32 IO and the test process can never exit (this exact hang
+    // stalled windows-build run 39635044715 for over an hour).
+    addTearDown(() async {
+      final channel = await serverChannelFuture;
+      await channel.close();
+    });
 
     final clientChannel = await connectNamedPipe(pipeName);
     final client = ToolHostClient(

@@ -17,6 +17,9 @@ jobs:
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
       - name: ToolHost named-pipe test (real Windows pipe round trip)
+        # Hard cap: run 39635044715 hung ~1.5h in this step before the
+        # transport's shutdown contract was fixed; never again.
+        timeout-minutes: 5
         working-directory: packages/cairn_toolhost
         run: |
           dart pub get

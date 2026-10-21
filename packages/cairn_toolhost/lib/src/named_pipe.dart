@@ -20,6 +20,16 @@ import 'package:win32/win32.dart';
 // and writes in a dedicated writer isolate. The OS handle is a plain
 // integer valid across isolates of the same process.
 //
+// Shutdown contract (learned from a real Windows CI hang, run
+// 39635044715: the round-trip test passed its assertions but the
+// process never exited): exactly one owner — the main isolate —
+// closes the handle, exactly once, and it does so from OUTSIDE the
+// reader isolate. Closing the handle is what unblocks the reader's
+// pending ReadFile (it then reports 'closed' and exits on its own);
+// Isolate.kill() does NOT preempt a blocking FFI call, and a writer
+// isolate closing the handle on its own raced the reader. Every
+// channel must be closed by its owner when done.
+//
 // Access control: a \\.\pipe name is reachable by processes of the
 // same user session under the default ACL; v1's trust model is
 // same-user (the app spawns its own host). Cross-user hardening is
@@ -169,7 +179,8 @@ void _writerIsolate(({int handle, SendPort ready}) args) {
   final written = malloc<Uint32>();
   port.listen((message) {
     if (message == 'close') {
-      CloseHandle(args.handle);
+      // The handle is closed by the main isolate (single owner);
+      // closing it here too could close a recycled handle value.
       malloc.free(written);
       Isolate.exit();
     }
@@ -224,13 +235,30 @@ Future<PipeChannel> _channel({required bool server, required String name}) async
     onDone: () => writerPort.send('close'),
   );
 
+  var handleClosed = false;
   return PipeChannel._(
     controller.stream,
     sinkController.sink,
     () {
-      reader.kill();
-      writer.kill();
+      // Single-owner close: this (main) isolate closes the handle
+      // exactly once. That unblocks the reader isolate's pending
+      // ReadFile, which reports 'closed' and exits by itself; the
+      // writer is told to exit without touching the handle.
+      if (!handleClosed) {
+        handleClosed = true;
+        CloseHandle(handle);
+      }
+      writerPort.send('close');
+      if (!controller.isClosed) {
+        controller.close();
+      }
       inbound.close();
+      // Last resort only: if an isolate still has not exited after
+      // the handle close gave it its chance, kill it.
+      Timer(const Duration(seconds: 2), () {
+        reader.kill();
+        writer.kill();
+      });
     },
   );
 }
