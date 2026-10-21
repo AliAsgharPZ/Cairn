@@ -44,8 +44,9 @@ class TrainingScreen extends StatefulWidget {
 }
 
 class _TrainingScreenState extends State<TrainingScreen> {
-  final TextEditingController _nameController =
-      TextEditingController(text: 'مدل من');
+  final TextEditingController _nameController = TextEditingController(
+    text: 'مدل من',
+  );
   final TextEditingController _dataController = TextEditingController();
   final TextEditingController _instructController = TextEditingController();
   final TextEditingController _playController = TextEditingController();
@@ -146,10 +147,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
       _losses = const [];
       _perplexity = null;
     });
-    _say('دیتاست ساخته شد: ${dataset.stats.keptCount} نمونهٔ تمیز ماند، '
-        '${dataset.stats.droppedDuplicates} تکراری و '
-        '${dataset.stats.droppedEmpty + dataset.stats.droppedShort} '
-        'خالی/کوتاه حذف شد. واژگان: ${tokenizer.vocabSize}');
+    _say(
+      'دیتاست ساخته شد: ${dataset.stats.keptCount} نمونهٔ تمیز ماند، '
+      '${dataset.stats.droppedDuplicates} تکراری و '
+      '${dataset.stats.droppedEmpty + dataset.stats.droppedShort} '
+      'خالی/کوتاه حذف شد. واژگان: ${tokenizer.vocabSize}',
+    );
   }
 
   Future<void> _train() async {
@@ -185,8 +188,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     // Evaluate before registering so the registry entry also carries
     // the honest perplexity.
     double? ppl;
-    final evalSet =
-        dataset.test.isNotEmpty ? dataset.test : dataset.validation;
+    final evalSet = dataset.test.isNotEmpty ? dataset.test : dataset.validation;
     if (evalSet.isNotEmpty) {
       ppl = ModelSpec.perplexity(model.evaluateLoss(evalSet, tokenizer));
     }
@@ -221,7 +223,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
         _selectedModelId = meta.id;
         _busy = false;
       });
-      var where = 'رفت توی قفسهٔ مدل‌ها (رجیستری) — پایین همین صفحه '
+      var where =
+          'رفت توی قفسهٔ مدل‌ها (رجیستری) — پایین همین صفحه '
           'توی بخش ۵ می‌بینیش و توی «کنسول تست» هم می‌تونی به‌عنوان '
           'مدل انتخابش کنی.';
       final target = _targetKey;
@@ -229,14 +232,18 @@ class _TrainingScreenState extends State<TrainingScreen> {
         final assigned = await _assignToAgent(target, meta.id);
         if (assigned != null) where = '$where $assigned';
       }
-      _say('آموزش تموم شد و مدل «${meta.name}» خودکار ذخیره شد '
-          '(زیان: ${losses.first.toStringAsFixed(3)} ← '
-          '${losses.last.toStringAsFixed(3)}). $where');
+      _say(
+        'آموزش تموم شد و مدل «${meta.name}» خودکار ذخیره شد '
+        '(زیان: ${losses.first.toStringAsFixed(3)} ← '
+        '${losses.last.toStringAsFixed(3)}). $where',
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _say('آموزش تموم شد ولی ذخیرهٔ خودکار نشد: $e — دکمهٔ «ثبت در '
-          'رجیستری» رو بزن تا دستی ذخیره بشه.');
+      _say(
+        'آموزش تموم شد ولی ذخیرهٔ خودکار نشد: $e — دکمهٔ «ثبت در '
+        'رجیستری» رو بزن تا دستی ذخیره بشه.',
+      );
     }
   }
 
@@ -252,8 +259,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final project = await store.load(parts[0]);
     final agent = project?.agentById(parts[1]);
     if (project == null || agent == null) return null;
-    agent.model =
-        ModelConfig(providerId: 'local-trained', modelId: modelId);
+    agent.model = ModelConfig(providerId: 'local-trained', modelId: modelId);
     project.upsertAgent(agent);
     await store.save(project);
     return 'به‌عنوان مغزِ ${_targetLabel(targetKey)} هم وصلش کردم؛ از '
@@ -267,38 +273,45 @@ class _TrainingScreenState extends State<TrainingScreen> {
   Future<void> _evaluate() async {
     final src = await _selectedOrCurrent();
     if (src == null) {
-      _say('هنوز مدلی نداری — اول «شروع آموزش» رو بزن؛ وقتی آموزش تموم '
-          'بشه مدل خودکار ذخیره می‌شه و ارزیابی هم روشن می‌شه.');
+      _say(
+        'هنوز مدلی نداری — اول «شروع آموزش» رو بزن؛ وقتی آموزش تموم '
+        'بشه مدل خودکار ذخیره می‌شه و ارزیابی هم روشن می‌شه.',
+      );
       return;
     }
     final dataset = _dataset;
     if (dataset == null) {
-      _say('برای ارزیابی اول دیتاست رو بساز (بخش ۲) تا چند جمله برای '
-          'امتحان‌گرفتن از مدل داشته باشیم.');
+      _say(
+        'برای ارزیابی اول دیتاست رو بساز (بخش ۲) تا چند جمله برای '
+        'امتحان‌گرفتن از مدل داشته باشیم.',
+      );
       return;
     }
-    final evalSet =
-        dataset.test.isNotEmpty ? dataset.test : dataset.validation;
+    final evalSet = dataset.test.isNotEmpty ? dataset.test : dataset.validation;
     if (evalSet.isEmpty) {
       _say('مجموعهٔ ارزیابی خالی است؛ دادهٔ بیشتری وارد کن.');
       return;
     }
     final loss = src.model.evaluateLoss(evalSet, src.tokenizer);
     setState(() => _perplexity = ModelSpec.perplexity(loss));
-    _say('ارزیابی روی ${evalSet.length} نمونه: زیان '
-        '${loss.toStringAsFixed(3)} — پرپلکسیتی '
-        '${_perplexity!.toStringAsFixed(2)} (هرچه کمتر، بهتر)');
+    _say(
+      'ارزیابی روی ${evalSet.length} نمونه: زیان '
+      '${loss.toStringAsFixed(3)} — پرپلکسیتی '
+      '${_perplexity!.toStringAsFixed(2)} (هرچه کمتر، بهتر)',
+    );
   }
 
   Future<void> _registerCurrent() async {
     final model = _model;
     final tokenizer = _tokenizer;
     if (model == null || tokenizer == null) {
-      _say(_selectedModelId != null
-          ? 'این مدل همین حالا توی رجیستری هست ✅ — پایین صفحه توی '
-              'بخش ۵ می‌بینیش. (مدل‌ها بعد از آموزش خودکار ذخیره می‌شن.)'
-          : 'هنوز مدلی آموزش ندادی — اول داده بده و «شروع آموزش» رو '
-              'بزن؛ ذخیره بعد از آموزش خودکاره.');
+      _say(
+        _selectedModelId != null
+            ? 'این مدل همین حالا توی رجیستری هست ✅ — پایین صفحه توی '
+                  'بخش ۵ می‌بینیش. (مدل‌ها بعد از آموزش خودکار ذخیره می‌شن.)'
+            : 'هنوز مدلی آموزش ندادی — اول داده بده و «شروع آموزش» رو '
+                  'بزن؛ ذخیره بعد از آموزش خودکاره.',
+      );
       return;
     }
     final meta = await widget.registry.register(
@@ -323,12 +336,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
       final assigned = await _assignToAgent(target, meta.id);
       if (assigned != null) extra = ' $assigned';
     }
-    _say('مدل «${meta.name}» در رجیستری ثبت شد '
-        '(${_paramLabel(meta.parameterCount)} پارامتر واقعی).$extra');
+    _say(
+      'مدل «${meta.name}» در رجیستری ثبت شد '
+      '(${_paramLabel(meta.parameterCount)} پارامتر واقعی).$extra',
+    );
   }
 
   Future<({NeuralLanguageModel model, WordTokenizer tokenizer})?>
-      _selectedOrCurrent() async {
+  _selectedOrCurrent() async {
     if (_model != null && _tokenizer != null) {
       return (model: _model!, tokenizer: _tokenizer!);
     }
@@ -363,8 +378,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
       }
     }
     if (examples.isEmpty) {
-      _say('هیچ مثال دستوری معتبری پیدا نشد (هر خط یک JSON با prompt و '
-          'completion).');
+      _say(
+        'هیچ مثال دستوری معتبری پیدا نشد (هر خط یک JSON با prompt و '
+        'completion).',
+      );
       return;
     }
     setState(() {
@@ -398,8 +415,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     await _reloadModels();
-    _say('فاین‌تیون تمام و «${meta.name}» ثبت شد '
-        '(زیان ${losses.last.toStringAsFixed(3)}، $skipped خط نامعتبر).');
+    _say(
+      'فاین‌تیون تمام و «${meta.name}» ثبت شد '
+      '(زیان ${losses.last.toStringAsFixed(3)}، $skipped خط نامعتبر).',
+    );
   }
 
   Future<void> _playground() async {
@@ -413,8 +432,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       _say('مدل پیدا نشد.');
       return;
     }
-    final promptIds =
-        loaded.tokenizer.encode(_playController.text, eos: false);
+    final promptIds = loaded.tokenizer.encode(_playController.text, eos: false);
     final generated = loaded.model.generate(
       promptIds,
       maxTokens: 40,
@@ -435,15 +453,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final configs = await widget.settingsStore.load();
     final next = [
       for (final c in configs)
-        if (!(c.providerId == 'local-trained' &&
-            c.defaultModelId == model.id))
+        if (!(c.providerId == 'local-trained' && c.defaultModelId == model.id))
           c,
       ProviderConfig(providerId: 'local-trained', defaultModelId: model.id),
     ];
     await widget.settingsStore.save(next);
     widget.onProvidersChanged?.call();
-    _say('پرووایدر کنسول برای «${model.name}» ساخته شد — در کنسول تست '
-        'قابل انتخاب است.');
+    _say(
+      'پرووایدر کنسول برای «${model.name}» ساخته شد — در کنسول تست '
+      'قابل انتخاب است.',
+    );
   }
 
   @override
@@ -465,9 +484,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
         ),
         if (_status.isNotEmpty) ...[
           const SizedBox(height: CairnSpacing.sm),
-          Text(_status,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: CairnColors.link)),
+          Text(
+            _status,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: CairnColors.link,
+            ),
+          ),
         ],
         const SizedBox(height: CairnSpacing.lg),
         Text('۱) نام و قابلیت‌های هدف', style: theme.textTheme.titleMedium),
@@ -495,8 +517,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ],
         ),
         const SizedBox(height: CairnSpacing.sm),
-        Text('این مدل مال کیه؟ (هدف آموزش)',
-            style: theme.textTheme.titleSmall),
+        Text('این مدل مال کیه؟ (هدف آموزش)', style: theme.textTheme.titleSmall),
         const SizedBox(height: CairnSpacing.xs),
         DropdownButton<String?>(
           value: _targetKey,
@@ -518,15 +539,17 @@ class _TrainingScreenState extends State<TrainingScreen> {
         Text(
           _targetKey == null
               ? 'مدل مستقل می‌سازی: بعد از آموزش می‌ره توی قفسهٔ مدل‌ها '
-                  '(رجیستری) و هر ایجنتی می‌تونه از کنسول تست یا '
-                  'تنظیماتش انتخابش کنه.'
+                    '(رجیستری) و هر ایجنتی می‌تونه از کنسول تست یا '
+                    'تنظیماتش انتخابش کنه.'
               : 'بعد از آموزش، این مدل خودکار می‌شه مغزِ '
-                  '${_targetLabel(_targetKey!)} و همونجا ذخیره می‌شه.',
+                    '${_targetLabel(_targetKey!)} و همونجا ذخیره می‌شه.',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: CairnSpacing.lg),
-        Text('۲) دادهٔ خام (هر خط یک نمونه)',
-            style: theme.textTheme.titleMedium),
+        Text(
+          '۲) دادهٔ خام (هر خط یک نمونه)',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: CairnSpacing.sm),
         TextField(
           controller: _dataController,
@@ -597,8 +620,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
               ],
               onChanged: (v) => setState(() => _epochs = v ?? 30),
             ),
-            Text('پارامتر واقعی مدل: ${_paramLabel(_trueParamCount)}',
-                style: theme.textTheme.bodySmall),
+            Text(
+              'پارامتر واقعی مدل: ${_paramLabel(_trueParamCount)}',
+              style: theme.textTheme.bodySmall,
+            ),
           ],
         ),
         const SizedBox(height: CairnSpacing.sm),
@@ -641,12 +666,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
         ],
         if (_perplexity != null) ...[
           const SizedBox(height: CairnSpacing.xs),
-          Text('پرپلکسیتی ارزیابی: ${_perplexity!.toStringAsFixed(2)}',
-              style: theme.textTheme.bodySmall),
+          Text(
+            'پرپلکسیتی ارزیابی: ${_perplexity!.toStringAsFixed(2)}',
+            style: theme.textTheme.bodySmall,
+          ),
         ],
         const SizedBox(height: CairnSpacing.lg),
-        Text('۴) فاین‌تیون دستوری (هر خط یک JSON)',
-            style: theme.textTheme.titleMedium),
+        Text(
+          '۴) فاین‌تیون دستوری (هر خط یک JSON)',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: CairnSpacing.sm),
         TextField(
           controller: _instructController,
@@ -670,14 +699,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
         Text('۵) رجیستری مدل‌ها', style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.sm),
         if (_models.isEmpty)
-          Text('هنوز مدلی ثبت نشده است.',
-              style: theme.textTheme.bodySmall),
+          Text('هنوز مدلی ثبت نشده است.', style: theme.textTheme.bodySmall),
         for (final model in _models)
           Card(
             child: ListTile(
-              leading: Icon(model.kind == 'instruct'
-                  ? Icons.chat_outlined
-                  : Icons.psychology_outlined),
+              leading: Icon(
+                model.kind == 'instruct'
+                    ? Icons.chat_outlined
+                    : Icons.psychology_outlined,
+              ),
               title: Text(model.name),
               subtitle: Text(
                 '${model.kind == 'instruct' ? 'دستوری' : 'پایه'} — '
@@ -708,8 +738,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
             ),
           ),
         const SizedBox(height: CairnSpacing.lg),
-        Text('۶) تولید نمونه با مدل انتخاب‌شده',
-            style: theme.textTheme.titleMedium),
+        Text(
+          '۶) تولید نمونه با مدل انتخاب‌شده',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: CairnSpacing.sm),
         Row(
           children: [
@@ -723,10 +755,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
               ),
             ),
             const SizedBox(width: CairnSpacing.sm),
-            FilledButton(
-              onPressed: _playground,
-              child: const Text('تولید'),
-            ),
+            FilledButton(onPressed: _playground, child: const Text('تولید')),
           ],
         ),
         if (_playOutput.isNotEmpty) ...[

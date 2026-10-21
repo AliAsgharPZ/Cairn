@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cairn_core/cairn_core.dart';
@@ -10,8 +11,8 @@ import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'agent_editor_screen.dart';
 import 'app_settings.dart';
+import 'sync_runner.dart';
 import 'device_identity.dart';
-import 'devices_screen.dart';
 import 'project_store.dart';
 import 'projects_screen.dart';
 import 'provider_settings.dart';
@@ -66,13 +67,12 @@ class _Destination {
 }
 
 List<_Destination> _destinations(S s) => [
-      _Destination(s.projects, Icons.folder_outlined),
-      _Destination(s.agentEditor, Icons.smart_toy_outlined),
-      _Destination(s.testConsole, Icons.terminal_outlined),
-      _Destination(s.devicesAndSync, Icons.devices_outlined),
-      _Destination(s.training, Icons.school_outlined),
-      _Destination(s.settings, Icons.settings_outlined),
-    ];
+  _Destination(s.projects, Icons.folder_outlined),
+  _Destination(s.agentEditor, Icons.smart_toy_outlined),
+  _Destination(s.testConsole, Icons.terminal_outlined),
+  _Destination(s.training, Icons.school_outlined),
+  _Destination(s.settings, Icons.settings_outlined),
+];
 
 class _StudioShellState extends State<StudioShell> {
   int _index = 0;
@@ -80,11 +80,81 @@ class _StudioShellState extends State<StudioShell> {
   List<ProviderConfig> _providerConfigs = const [];
   List<Skill> _skills = const [];
 
+  // Auto-sync: once shortly after startup, then every 10 minutes
+  // while the studio is open. The header button runs the same flow on
+  // demand. Auto-sync stays silent unless something actually changed.
+  bool _syncing = false;
+  Timer? _autoSyncTimer;
+
   @override
   void initState() {
     super.initState();
     _reloadProviders();
     _reloadSkills();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoSync());
+    _autoSyncTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) => _autoSync(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<List<PeerSyncOutcome>> _syncAll() async {
+    final identity = await DeviceIdentityService(widget.seedStore)
+        .loadOrCreate();
+    return SyncRunner(
+      projects: widget.store,
+      skills: widget.skillStore,
+      baseDir: widget.store.baseDir,
+      identity: identity,
+    ).syncAll();
+  }
+
+  Future<void> _autoSync() async {
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      final outcomes = await _syncAll();
+      final changed = outcomes.where((o) => o.changed).toList();
+      if (mounted && changed.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'سینک خودکار انجام شد — '
+              '${changed.map((o) => '${o.peerName}: ${o.message}').join('؛ ')}',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      // Auto-sync must never interrupt the user with failures.
+    }
+    _syncing = false;
+  }
+
+  Future<void> _manualSync() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    try {
+      final outcomes = await _syncAll();
+      if (!mounted) return;
+      final text = outcomes.isEmpty
+          ? 'دستگاه جفت‌شده‌ای با نشانی ذخیره‌شده نیست — از تنظیمات، '
+                'بخش «دستگاه‌ها و سینک»، نشانی IP دستگاه دیگر را وارد کن.'
+          : outcomes.map((o) => '${o.peerName}: ${o.message}').join('؛ ');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('سینک ناموفق بود: $e')));
+      }
+    }
+    if (mounted) setState(() => _syncing = false);
   }
 
   Future<void> _reloadProviders() async {
@@ -139,16 +209,9 @@ class _StudioShellState extends State<StudioShell> {
           registry: widget.registry,
           providerConfigs: _providerConfigs,
           keyStore: widget.keyStore,
-          onOpenSettings: () => setState(() => _index = 5),
+          onOpenSettings: () => setState(() => _index = 4),
           skillRegistry: SkillRegistry(_skills),
           modelRegistry: _modelRegistry,
-        ),
-        DevicesScreen(
-          projects: widget.store,
-          skills: widget.skillStore,
-          baseDir: widget.store.baseDir,
-          seedStore: widget.seedStore,
-          registry: widget.registry,
         ),
         TrainingScreen(
           baseDir: widget.store.baseDir,
@@ -164,6 +227,10 @@ class _StudioShellState extends State<StudioShell> {
           modelRegistry: _modelRegistry,
           appSettings: widget.appSettings,
           onAppSettingsChanged: widget.onAppSettingsChanged,
+          projectsStore: widget.store,
+          skillStore: widget.skillStore,
+          seedStore: widget.seedStore,
+          toolRegistry: widget.registry,
         ),
       ],
     );
@@ -187,6 +254,19 @@ class _StudioShellState extends State<StudioShell> {
             Text(s.studio),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: _syncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            tooltip: 'سینک با دستگاه‌های جفت‌شده',
+            onPressed: _syncing ? null : _manualSync,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -246,4 +326,3 @@ class _StudioShellState extends State<StudioShell> {
     );
   }
 }
-

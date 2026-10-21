@@ -35,7 +35,8 @@ Future<ToolHostBoot> bootWindowsToolHost({
   final hostExe = File('$exeDir/cairn_tool_host.exe');
   if (!await hostExe.exists()) {
     return const ToolHostBoot(
-      status: 'Tool Host ویندوز پیدا نشد (cairn_tool_host.exe کنار '
+      status:
+          'Tool Host ویندوز پیدا نشد (cairn_tool_host.exe کنار '
           'برنامه نیست) — ابزارها محلی اجرا می‌شن.',
       registry: null,
     );
@@ -43,27 +44,31 @@ Future<ToolHostBoot> bootWindowsToolHost({
   Process? process;
   try {
     final pipeName = 'cairn-toolhost-$pid';
-    process = await Process.start(
-      hostExe.path,
-      ['--root', workspaceRoot.path, '--pipe', pipeName],
-    );
+    process = await Process.start(hostExe.path, [
+      '--root',
+      workspaceRoot.path,
+      '--pipe',
+      pipeName,
+    ]);
     // Drain stderr so a chatty host can never block on a full pipe.
     unawaited(process.stderr.drain<void>());
     unawaited(process.stdout.drain<void>());
-    final channel =
-        await connectNamedPipe(pipeName).timeout(const Duration(seconds: 15));
+    final channel = await connectNamedPipe(pipeName)
+        .timeout(const Duration(seconds: 15));
     final client = ToolHostClient(
       incoming: channel.stream,
       outgoing: channel.sink,
     );
     await client.ping().timeout(const Duration(seconds: 10));
-    final tools =
-        await client.toolsFromCapabilities().timeout(const Duration(seconds: 10));
+    final tools = await client.toolsFromCapabilities().timeout(
+      const Duration(seconds: 10),
+    );
     if (tools.isEmpty) {
       throw StateError('host reported no tools');
     }
     return ToolHostBoot(
-      status: 'Tool Host ویندوز وصله — ${tools.length} ابزار از پروسهٔ '
+      status:
+          'Tool Host ویندوز وصله — ${tools.length} ابزار از پروسهٔ '
           'جدا (Named Pipe) اجرا می‌شن.',
       registry: ToolRegistry(tools),
     );

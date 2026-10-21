@@ -17,10 +17,10 @@ class AppSettings {
   final String themeMode;
 
   ThemeMode get themeModeValue => switch (themeMode) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   AppSettings copyWith({String? languageCode, String? themeMode}) =>
       AppSettings(
@@ -29,14 +29,14 @@ class AppSettings {
       );
 
   Map<String, Object?> toJson() => {
-        'languageCode': languageCode,
-        'themeMode': themeMode,
-      };
+    'languageCode': languageCode,
+    'themeMode': themeMode,
+  };
 
   factory AppSettings.fromJson(Map<String, Object?> json) => AppSettings(
-        languageCode: json['languageCode'] as String? ?? 'fa',
-        themeMode: json['themeMode'] as String? ?? 'system',
-      );
+    languageCode: json['languageCode'] as String? ?? 'fa',
+    themeMode: json['themeMode'] as String? ?? 'system',
+  );
 }
 
 class AppSettingsStore {
@@ -49,8 +49,8 @@ class AppSettingsStore {
   Future<AppSettings> load() async {
     try {
       if (!await _file.exists()) return const AppSettings();
-      final json =
-          (jsonDecode(await _file.readAsString()) as Map).cast<String, Object?>();
+      final json = (jsonDecode(await _file.readAsString()) as Map)
+          .cast<String, Object?>();
       return AppSettings.fromJson(json);
     } catch (_) {
       // A corrupt settings file must never block startup.

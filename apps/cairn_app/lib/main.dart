@@ -27,22 +27,24 @@ class CairnApp extends StatefulWidget {
     SeedStore? seedStore,
     this.toolHostStatus,
     AppSettingsStore? appSettingsStore,
-  })  : registry = registry ??
-            ToolRegistry([
-              ...BuiltInTools.all(),
-              // Platform tools are confined to the agent workspace inside
-              // the app's data directory.
-              ...PlatformTools.all(
-                  root: Directory('${store.baseDir.path}/workspace')),
-            ]),
-        settingsStore = settingsStore ?? ProviderSettingsStore(store.baseDir),
-        // Tests may omit the key store (in-memory); main() always passes the
-        // platform secure store.
-        keyStore = keyStore ?? MemoryApiKeyStore(),
-        skillStore = skillStore ?? SkillStore(store.baseDir),
-        // Tests use the in-memory seed store; main() passes the secure one.
-        seedStore = seedStore ?? MemorySeedStore(),
-        appSettingsStore = appSettingsStore ?? AppSettingsStore(store.baseDir);
+  }) : registry =
+           registry ??
+           ToolRegistry([
+             ...BuiltInTools.all(),
+             // Platform tools are confined to the agent workspace inside
+             // the app's data directory.
+             ...PlatformTools.all(
+               root: Directory('${store.baseDir.path}/workspace'),
+             ),
+           ]),
+       settingsStore = settingsStore ?? ProviderSettingsStore(store.baseDir),
+       // Tests may omit the key store (in-memory); main() always passes the
+       // platform secure store.
+       keyStore = keyStore ?? MemoryApiKeyStore(),
+       skillStore = skillStore ?? SkillStore(store.baseDir),
+       // Tests use the in-memory seed store; main() passes the secure one.
+       seedStore = seedStore ?? MemorySeedStore(),
+       appSettingsStore = appSettingsStore ?? AppSettingsStore(store.baseDir);
 
   final ProjectStore store;
   final ToolRegistry registry;
@@ -133,12 +135,14 @@ Future<void> main() async {
     registry = boot.registry;
     toolHostStatus = boot.status;
   }
-  runApp(CairnApp(
-    store: ProjectStore(cairnDir),
-    registry: registry,
-    settingsStore: ProviderSettingsStore(cairnDir),
-    keyStore: SecureApiKeyStore(),
-    seedStore: SecureSeedStore(),
-    toolHostStatus: toolHostStatus,
-  ));
+  runApp(
+    CairnApp(
+      store: ProjectStore(cairnDir),
+      registry: registry,
+      settingsStore: ProviderSettingsStore(cairnDir),
+      keyStore: SecureApiKeyStore(),
+      seedStore: SecureSeedStore(),
+      toolHostStatus: toolHostStatus,
+    ),
+  );
 }

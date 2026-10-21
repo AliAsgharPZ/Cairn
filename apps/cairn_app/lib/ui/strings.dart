@@ -70,7 +70,6 @@ class S {
   String agentsAndLastChange(int count, String date) => fa
       ? '$count ایجنت · آخرین تغییر: $date'
       : '$count agent(s) · Last change: $date';
-  String get exportTooltip =>
-      fa ? 'خروجی (.cairn.zip)' : 'Export (.cairn.zip)';
+  String get exportTooltip => fa ? 'خروجی (.cairn.zip)' : 'Export (.cairn.zip)';
   String get deleteProjectTooltip => fa ? 'حذف پروژه' : 'Delete project';
 }

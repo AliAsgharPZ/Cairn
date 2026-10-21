@@ -10,6 +10,7 @@ import '../ui/tokens.dart';
 import 'device_identity.dart';
 import 'project_store.dart';
 import 'skill_store.dart';
+import 'sync_runner.dart';
 import 'sync_service.dart';
 
 /// Devices & sync (M7): this device's identity, pairing (offer paste +
@@ -25,12 +26,17 @@ class DevicesScreen extends StatefulWidget {
     required this.baseDir,
     required this.seedStore,
     required this.registry,
+    this.embedded = false,
   });
 
   final ProjectStore projects;
   final SkillStore skills;
   final Directory baseDir;
   final SeedStore seedStore;
+
+  /// True when hosted inside the Settings screen's scroll view: the
+  /// internal list shrinks to fit instead of scrolling on its own.
+  final bool embedded;
 
   /// This device's tool registry: what the overflow server can execute
   /// for paired peers (subject to the owner's switches below).
@@ -102,15 +108,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
   }
 
   SyncCoordinator _coordinator() => SyncCoordinator(
-        projects: widget.projects,
-        skills: widget.skills,
-        baseDir: widget.baseDir,
-        deviceId: _identity!.deviceId,
-      );
+    projects: widget.projects,
+    skills: widget.skills,
+    baseDir: widget.baseDir,
+    deviceId: _identity!.deviceId,
+  );
 
   Future<void> _load() async {
-    final identity =
-        await DeviceIdentityService(widget.seedStore).loadOrCreate();
+    final identity = await DeviceIdentityService(widget.seedStore)
+        .loadOrCreate();
     final name = await DeviceProfileStore(widget.baseDir).loadName();
     final paired = await PairedDevicesStore(widget.baseDir).list();
     final specs = await DeviceSpecsStore(widget.baseDir).load();
@@ -163,8 +169,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
   Future<void> _inspectOffer() async {
     try {
       final offer = PairingOffer.decode(_pasteController.text.trim());
-      final session =
-          await PairingSession.fromOffer(local: _identity!, offer: offer);
+      final session = await PairingSession.fromOffer(
+        local: _identity!,
+        offer: offer,
+      );
       setState(() {
         _pendingSession = session;
       });
@@ -195,27 +203,19 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
     _showStatus('در حال سینک…');
     try {
-      final coordinator = _coordinator();
-      final records = await coordinator.buildRecords();
-      final result = await syncWithPeer(
-        host: host,
-        port: 47800,
-        local: _identity!,
-        peer: peer,
-        localRecords: records,
-      );
-      final report = await coordinator.applyResult(result);
-      // Remember the working host for next time.
-      await PairedDevicesStore(widget.baseDir).add(PairedDevice(
-        identity: peer.identity,
-        pairedAtIso: peer.pairedAtIso,
-        endpoints: [host],
-      ));
+      final report = await SyncRunner(
+        projects: widget.projects,
+        skills: widget.skills,
+        baseDir: widget.baseDir,
+        identity: _identity!,
+      ).syncPeer(peer, host);
       await _reloadTrash();
-      _showStatus('سینک انجام شد — پروژه: ${report.projectsApplied}، '
-          'مهارت: ${report.skillsApplied}، '
-          'تعارض تازه: ${report.conflictsCreated}، '
-          'حذف‌شده: ${report.deleted}');
+      _showStatus(
+        'سینک انجام شد — پروژه: ${report.projectsApplied}، '
+        'مهارت: ${report.skillsApplied}، '
+        'تعارض تازه: ${report.conflictsCreated}، '
+        'حذف‌شده: ${report.deleted}',
+      );
     } catch (e) {
       _showStatus('سینک ناموفق بود: $e');
     }
@@ -231,9 +231,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
           loadRecords: () => _coordinator().buildRecords(),
           onSync: (result) async {
             final report = await _coordinator().applyResult(result);
-            _showStatus('سینک ورودی انجام شد — پروژه: '
-                '${report.projectsApplied}، تعارض: '
-                '${report.conflictsCreated}، حذف: ${report.deleted}');
+            _showStatus(
+              'سینک ورودی انجام شد — پروژه: '
+              '${report.projectsApplied}، تعارض: '
+              '${report.conflictsCreated}، حذف: ${report.deleted}',
+            );
             await _reloadTrash();
           },
         );
@@ -278,7 +280,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
           final tool = widget.registry.lookup(toolId);
           if (tool == null) {
             return OverflowToolReply(
-                ok: false, output: 'unknown tool: $toolId');
+              ok: false,
+              output: 'unknown tool: $toolId',
+            );
           }
           final result = await tool.run(
             arguments,
@@ -338,11 +342,13 @@ class _DevicesScreenState extends State<DevicesScreen> {
       String verdict(RouteDecision d) => d.isBlocked
           ? 'مسدود: ${d.unmet.join('؛ ')}'
           : (d.isLocal ? 'محلی اجرا می‌شود' : 'سرریز به دستگاه مقابل');
-      _showStatus('توانمندی‌های ${peer.identity.displayName}: '
-          '${caps.cpuCores} هسته، ${caps.ramMb}MB RAM، '
-          'GPU: ${caps.hasGpu ? 'دارد' : 'ندارد'} — '
-          'مرحلهٔ سنگین RAM: ${verdict(heavyRam)}؛ '
-          'مرحلهٔ GPU: ${verdict(gpuStep)}');
+      _showStatus(
+        'توانمندی‌های ${peer.identity.displayName}: '
+        '${caps.cpuCores} هسته، ${caps.ramMb}MB RAM، '
+        'GPU: ${caps.hasGpu ? 'دارد' : 'ندارد'} — '
+        'مرحلهٔ سنگین RAM: ${verdict(heavyRam)}؛ '
+        'مرحلهٔ GPU: ${verdict(gpuStep)}',
+      );
     } catch (e) {
       _showStatus('گرفتن توانمندی‌ها ناموفق بود: $e');
     }
@@ -356,6 +362,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return ListView(
+      shrinkWrap: widget.embedded,
+      physics: widget.embedded ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(CairnSpacing.lg),
       children: [
         Text('این دستگاه', style: theme.textTheme.titleMedium),
@@ -385,9 +393,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
         const Divider(height: CairnSpacing.xxl),
         Text('جفت‌سازی دستگاه تازه', style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.xs),
-        const Text('در یک دستگاه «ساخت پیشنهاد» را بزن و متنش را اینجا '
-            'بچسبان؛ در دستگاه دیگر هم همین کار را برعکس انجام بده. '
-            'کد ۶ رقمی باید در هر دو دستگاه یکسان باشد.'),
+        const Text(
+          'در یک دستگاه «ساخت پیشنهاد» را بزن و متنش را اینجا '
+          'بچسبان؛ در دستگاه دیگر هم همین کار را برعکس انجام بده. '
+          'کد ۶ رقمی باید در هر دو دستگاه یکسان باشد.',
+        ),
         const SizedBox(height: CairnSpacing.sm),
         Wrap(
           spacing: CairnSpacing.sm,
@@ -408,15 +418,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
         if (_offerText != null) ...[
           const SizedBox(height: CairnSpacing.sm),
-          SelectableText(_offerText!,
-              style: theme.textTheme.bodySmall),
+          SelectableText(_offerText!, style: theme.textTheme.bodySmall),
         ],
         const SizedBox(height: CairnSpacing.md),
         TextField(
           controller: _pasteController,
           maxLines: 3,
           decoration: const InputDecoration(
-              labelText: 'پیشنهاد دستگاه دیگر را اینجا بچسبان'),
+            labelText: 'پیشنهاد دستگاه دیگر را اینجا بچسبان',
+          ),
         ),
         const SizedBox(height: CairnSpacing.sm),
         OutlinedButton(
@@ -425,10 +435,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
         if (_pendingSession != null) ...[
           const SizedBox(height: CairnSpacing.md),
-          Text('کد تأیید (باید با دستگاه دیگر یکسان باشد):',
-              style: theme.textTheme.bodyMedium),
-          Text(_pendingSession!.sas,
-              style: theme.textTheme.headlineMedium),
+          Text(
+            'کد تأیید (باید با دستگاه دیگر یکسان باشد):',
+            style: theme.textTheme.bodyMedium,
+          ),
+          Text(_pendingSession!.sas, style: theme.textTheme.headlineMedium),
           FilledButton(
             onPressed: _confirmPairing,
             child: const Text('کدها یکسان‌اند — جفت کن'),
@@ -446,11 +457,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(peer.identity.displayName.isEmpty
-                        ? peer.identity.deviceId
-                        : peer.identity.displayName),
-                    Text(peer.identity.deviceId,
-                        style: theme.textTheme.bodySmall),
+                    Text(
+                      peer.identity.displayName.isEmpty
+                          ? peer.identity.deviceId
+                          : peer.identity.displayName,
+                    ),
+                    Text(
+                      peer.identity.deviceId,
+                      style: theme.textTheme.bodySmall,
+                    ),
                     Row(
                       children: [
                         Expanded(
@@ -458,12 +473,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
                             controller: _hostControllers.putIfAbsent(
                               peer.identity.deviceId,
                               () => TextEditingController(
-                                  text: peer.endpoints.isEmpty
-                                      ? ''
-                                      : peer.endpoints.first),
+                                text: peer.endpoints.isEmpty
+                                    ? ''
+                                    : peer.endpoints.first,
+                              ),
                             ),
                             decoration: const InputDecoration(
-                                labelText: 'نشانی IP / Tailscale'),
+                              labelText: 'نشانی IP / Tailscale',
+                            ),
                           ),
                         ),
                         const SizedBox(width: CairnSpacing.sm),
@@ -485,8 +502,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
                             await PairedDevicesStore(widget.baseDir)
                                 .remove(peer.identity.deviceId);
                             final paired = await PairedDevicesStore(
-                                    widget.baseDir)
-                                .list();
+                              widget.baseDir,
+                            ).list();
                             if (mounted) {
                               setState(() {
                                 _paired = paired;
@@ -510,9 +527,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
         const Divider(height: CairnSpacing.xxl),
         Text('سرریز محاسباتی', style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.xs),
-        const Text('مشخصات این دستگاه برای مسیریابی مراحل سنگین. '
-            'تعداد هستهٔ CPU خودکار خوانده می‌شود؛ RAM و دیسک و GPU را '
-            'خودت وارد کن (از داخل دارت قابل اندازه‌گیری مطمئن نیستند).'),
+        const Text(
+          'مشخصات این دستگاه برای مسیریابی مراحل سنگین. '
+          'تعداد هستهٔ CPU خودکار خوانده می‌شود؛ RAM و دیسک و GPU را '
+          'خودت وارد کن (از داخل دارت قابل اندازه‌گیری مطمئن نیستند).',
+        ),
         const SizedBox(height: CairnSpacing.sm),
         Row(
           children: [
@@ -520,8 +539,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
               child: TextField(
                 controller: _ramController,
                 keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'RAM (مگابایت)'),
+                decoration: const InputDecoration(labelText: 'RAM (مگابایت)'),
               ),
             ),
             const SizedBox(width: CairnSpacing.sm),
@@ -530,7 +548,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 controller: _diskController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                    labelText: 'دیسک آزاد (مگابایت)'),
+                  labelText: 'دیسک آزاد (مگابایت)',
+                ),
               ),
             ),
           ],
@@ -556,17 +575,23 @@ class _DevicesScreenState extends State<DevicesScreen> {
           child: const Text('ذخیرهٔ مشخصات'),
         ),
         SwitchListTile(
-          title: const Text('سرور سرریز (اجرای ابزارهای این دستگاه '
-              'برای جفت‌شده‌ها)'),
-          subtitle: const Text('پورت ۴۷۸۰۱ — مقصد همیشه دوباره '
-              'اعتبارسنجی می‌کند'),
+          title: const Text(
+            'سرور سرریز (اجرای ابزارهای این دستگاه '
+            'برای جفت‌شده‌ها)',
+          ),
+          subtitle: const Text(
+            'پورت ۴۷۸۰۱ — مقصد همیشه دوباره '
+            'اعتبارسنجی می‌کند',
+          ),
           value: _overflowOn,
           onChanged: _toggleOverflow,
         ),
         SwitchListTile(
           title: const Text('اجازهٔ اجرای راه‌دور ابزارهای حساس'),
-          subtitle: const Text('پیش‌فرض خاموش است؛ با تغییرش سرور سرریز '
-              'را خاموش و روشن کن تا اعمال شود'),
+          subtitle: const Text(
+            'پیش‌فرض خاموش است؛ با تغییرش سرور سرریز '
+            'را خاموش و روشن کن تا اعمال شود',
+          ),
           value: _overflowSensitive,
           onChanged: (v) {
             setState(() {
@@ -575,8 +600,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
           },
         ),
         if (_trashCount > 0)
-          Text('سطل زبالهٔ سینک: $_trashCount مورد حذف‌شده (۳۰ روز نگه '
-              'داشته می‌شود).'),
+          Text(
+            'سطل زبالهٔ سینک: $_trashCount مورد حذف‌شده (۳۰ روز نگه '
+            'داشته می‌شود).',
+          ),
         if (_status.isNotEmpty) ...[
           const SizedBox(height: CairnSpacing.md),
           Text(_status),

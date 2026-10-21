@@ -74,8 +74,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     try {
       final file = await widget.store.exportProject(project);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(s.exportDone(file.path.split('/').last))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.exportDone(file.path.split('/').last))),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -132,8 +133,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       final imported = await widget.store.importArchive(chosen);
       _reload();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(s.imported(imported.name))));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(s.imported(imported.name))));
       }
     } on FormatException catch (e) {
       if (mounted) {
@@ -220,8 +221,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text(s.loadError(snapshot.error!),
-                        style: TextStyle(color: CairnColors.error)),
+                    child: Text(
+                      s.loadError(snapshot.error!),
+                      style: TextStyle(color: CairnColors.error),
+                    ),
                   );
                 }
                 if (!snapshot.hasData) {
@@ -241,8 +244,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(s.noProjectsYet,
-                            style: theme.textTheme.titleMedium),
+                        Text(
+                          s.noProjectsYet,
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: CairnSpacing.xs),
                         Text(
                           s.noProjectsHint,
@@ -262,8 +267,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       child: ListTile(
                         title: Text(project.name),
                         subtitle: Text(
-                          s.agentsAndLastChange(project.agents.length,
-                              _formatDate(project.updatedAt)),
+                          s.agentsAndLastChange(
+                            project.agents.length,
+                            _formatDate(project.updatedAt),
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

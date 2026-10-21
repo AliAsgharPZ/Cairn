@@ -16,8 +16,7 @@ void main() {
     expect(initial.themeMode, 'system');
     expect(initial.themeModeValue, ThemeMode.system);
 
-    await store.save(
-        const AppSettings(languageCode: 'en', themeMode: 'dark'));
+    await store.save(const AppSettings(languageCode: 'en', themeMode: 'dark'));
     final loaded = await store.load();
     expect(loaded.languageCode, 'en');
     expect(loaded.themeMode, 'dark');
