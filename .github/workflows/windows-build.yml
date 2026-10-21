@@ -16,6 +16,11 @@ jobs:
           channel: stable
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
+      - name: ToolHost named-pipe test (real Windows pipe round trip)
+        working-directory: packages/cairn_toolhost
+        run: |
+          dart pub get
+          dart test test/named_pipe_test.dart
       - name: Test
         working-directory: apps/cairn_app
         run: flutter test

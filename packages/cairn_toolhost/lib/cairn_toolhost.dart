@@ -6,4 +6,5 @@ export 'src/client.dart';
 export 'src/framing.dart';
 export 'src/host.dart';
 export 'src/host_main.dart';
+export 'src/named_pipe.dart';
 export 'src/protocol.dart';
