@@ -288,3 +288,22 @@ state hardware limits instead of pretending foundation-scale training.
   Identity/paired/profile stores covered by 3 app tests (CI). QR
   rendering of the offer is a display nicety deferred past v1 — the
   offer text itself is the pairing payload.
+
+## M10 — Packaging & final delivery 🔵
+
+- Version bumped to **1.0.0+1**. Final local verification sweep
+  (2026-10-21): **127/127 pure-Dart tests green** across all seven
+  packages (core 47, models 14, runtime 17, tools 16, toolhost 6,
+  sync 14, training 13) and `flutter analyze` clean for the app.
+- Delivery artifact: `Cairn-Complete-Project.zip` built from a clean
+  `git archive` of the delivery commit, integrity-tested, extracted
+  to a fresh directory and smoke-checked, and scanned for secrets
+  before delivery in the Cairn side chat (link + attachment).
+- Fresh binaries come from CI on the delivery commit and from the
+  `v1.0.0` tag's windows-build (which also runs the windows-only
+  named-pipe round-trip test — the last M5 verification). Statuses
+  are reported separately and honestly, as agreed.
+- Known remainders, stated plainly: the app's Windows startup
+  integration for the Tool Host pipe (spawn `--pipe` + merge host
+  tools at launch) and voice input from Flow 1 are the two items
+  beyond v1.0.0's verified scope.
