@@ -93,9 +93,19 @@ Last updated: 2026-10-21
   `host.capabilities` / `tool.invoke`; remote tools plug into the app's
   ToolRegistry as ordinary Tools, so policy/approvals apply unchanged.
   Executable in `tool_host/`. **6 tests passed**, including a real
-  spawned-process stdio end-to-end test. Remaining: Named Pipe transport
-  (Windows production) + app-side wiring to prefer the host on Windows —
-  verifiable only with the Windows build.
+  spawned-process stdio end-to-end test.
+- 🔵 Named Pipe transport (Windows production): implemented in
+  cairn_toolhost (`named_pipe.dart`, Win32 FFI via package:win32 —
+  the handle is opened in a helper isolate and reads/writes run in
+  dedicated isolates so blocking IO can't deadlock the protocol;
+  same-user trust model stated in code). The host serves over it via
+  `--pipe <name>`. Every FFI call type-checks against the real win32
+  API (`dart analyze` clean). The decisive runtime proof is a
+  windows-only round-trip test (`named_pipe_test.dart` — ping,
+  capabilities, a real calc.eval over a real pipe) wired into the
+  windows-build job; it runs on the next windows-build dispatch.
+  Remaining: app-side Windows startup integration (spawn the host
+  with --pipe, connect, merge its tools into the registry).
 - Owner reference flows: `docs/flowcharts.md` (provided 2026-10-21).
   Flow 1 = runtime acceptance picture (voice input captured there as a
   requirement, not yet scheduled). Flow 2 = the M9 training pathway.
