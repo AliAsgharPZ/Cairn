@@ -123,7 +123,22 @@ Last updated: 2026-10-21
   and a skills manager dialog (create with name/description/
   instructions/tool chips, delete); the test console hands the
   installed SkillRegistry to the orchestrator.
-## M7 — Pairing + two-way sync + conflict resolution ⬜
+## M7 — Pairing + two-way sync + conflict resolution 🔵
+
+- ✅ Sync core (`cairn_core/sync.dart`, pure Dart, deterministic):
+  VersionVector (increment/merge/compare with true concurrency
+  detection), Hlc hybrid logical clock (tick/receive are monotone even
+  across wall-clock skew), SyncRecord, and `mergeSyncRecords`
+  implementing the approved per-kind rules — dominating version wins;
+  concurrent project/skill edits keep local + emit a conflict copy with
+  the joined version vector; journal = append-only union by event id;
+  settings = per-key LWW by HLC; tombstones delete only when dominating
+  (a concurrent edit resurrects). **11 sync tests; core now 41/41.**
+  Pure-Dart total: **91 tests**.
+- ⬜ Device identity + pairing (Ed25519, QR/SAS, mutual TLS) and the
+  transport (LAN/Tailscale) that carries these records; app-side
+  record production from ProjectStore/SkillStore and the Devices UI.
+
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜
 ## M9 — Model-creation & training pathway + security hardening ⬜
