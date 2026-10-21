@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/tokens.dart';
+import 'project_store.dart';
 import 'provider_settings.dart';
 
 /// Model training (M9 / Flow 2): capabilities → data → cleaning report
@@ -24,12 +26,18 @@ class TrainingScreen extends StatefulWidget {
     required this.registry,
     required this.settingsStore,
     this.onProvidersChanged,
+    this.projectStore,
   });
 
   final Directory baseDir;
   final ModelRegistryStore registry;
   final ProviderSettingsStore settingsStore;
   final VoidCallback? onProvidersChanged;
+
+  /// When present, a trained model can be assigned a clear owner: the
+  /// user picks «مدل مستقل» or one concrete agent (project + agent) and
+  /// the model is wired as that agent's brain on registration.
+  final ProjectStore? projectStore;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -57,10 +65,35 @@ class _TrainingScreenState extends State<TrainingScreen> {
   int _epochs = 30;
   final double _lr = 0.5;
 
+  /// Projects (for the «این مدل مال کیه؟» target picker) and the chosen
+  /// target: null = standalone model in the registry; otherwise a
+  /// `projectId/agentId` key — the model becomes that agent's brain.
+  List<AgentProject> _projects = const [];
+  String? _targetKey;
+
   @override
   void initState() {
     super.initState();
     _reloadModels();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    final store = widget.projectStore;
+    if (store == null) return;
+    final projects = await store.list();
+    if (mounted) setState(() => _projects = projects);
+  }
+
+  /// Human label for a target key, e.g. ایجنت «x» — پروژهٔ «y».
+  String _targetLabel(String key) {
+    final parts = key.split('/');
+    for (final p in _projects) {
+      if (p.id != parts[0]) continue;
+      final agent = p.agentById(parts[1]);
+      if (agent != null) return 'ایجنت «${agent.name}» — پروژهٔ «${p.name}»';
+    }
+    return key;
   }
 
   @override
@@ -149,37 +182,125 @@ class _TrainingScreenState extends State<TrainingScreen> {
       seed: 42,
     );
     if (!mounted) return;
+    // Evaluate before registering so the registry entry also carries
+    // the honest perplexity.
+    double? ppl;
+    final evalSet =
+        dataset.test.isNotEmpty ? dataset.test : dataset.validation;
+    if (evalSet.isNotEmpty) {
+      ppl = ModelSpec.perplexity(model.evaluateLoss(evalSet, tokenizer));
+    }
     setState(() {
       _model = model;
       _losses = losses;
-      _busy = false;
+      _perplexity = ppl;
     });
-    _say('آموزش تمام شد. زیان نهایی: ${losses.last.toStringAsFixed(3)} '
-        '(شروع: ${losses.first.toStringAsFixed(3)})');
+    // AUTO-SAVE: a trained model must never live only in RAM — the
+    // owner lost finished models exactly that way (trained, switched
+    // tab, model gone, register button dead). Register immediately,
+    // select it, optionally wire it to its target agent, and say in
+    // plain words where the model went.
+    try {
+      final meta = await widget.registry.register(
+        name: _nameController.text.trim().isEmpty
+            ? 'مدل بدون نام'
+            : _nameController.text.trim(),
+        kind: 'base',
+        model: model,
+        tokenizer: tokenizer,
+        capabilities: _capabilities.toList(),
+        metrics: {
+          'epochs': _epochs,
+          'finalLoss': losses.last,
+          'perplexity': ?ppl,
+        },
+      );
+      await _reloadModels();
+      if (!mounted) return;
+      setState(() {
+        _selectedModelId = meta.id;
+        _busy = false;
+      });
+      var where = 'رفت توی قفسهٔ مدل‌ها (رجیستری) — پایین همین صفحه '
+          'توی بخش ۵ می‌بینیش و توی «کنسول تست» هم می‌تونی به‌عنوان '
+          'مدل انتخابش کنی.';
+      final target = _targetKey;
+      if (target != null) {
+        final assigned = await _assignToAgent(target, meta.id);
+        if (assigned != null) where = '$where $assigned';
+      }
+      _say('آموزش تموم شد و مدل «${meta.name}» خودکار ذخیره شد '
+          '(زیان: ${losses.first.toStringAsFixed(3)} ← '
+          '${losses.last.toStringAsFixed(3)}). $where');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _say('آموزش تموم شد ولی ذخیرهٔ خودکار نشد: $e — دکمهٔ «ثبت در '
+          'رجیستری» رو بزن تا دستی ذخیره بشه.');
+    }
   }
 
-  void _evaluate() {
-    final model = _model;
-    final tokenizer = _tokenizer;
+  /// Wires [modelId] as the brain (main model) of the agent named by
+  /// [targetKey] (a `projectId/agentId` key). Returns a plain-language
+  /// sentence for the status line, or null if the project/agent is
+  /// gone.
+  Future<String?> _assignToAgent(String targetKey, String modelId) async {
+    final store = widget.projectStore;
+    if (store == null) return null;
+    final parts = targetKey.split('/');
+    if (parts.length != 2) return null;
+    final project = await store.load(parts[0]);
+    final agent = project?.agentById(parts[1]);
+    if (project == null || agent == null) return null;
+    agent.model =
+        ModelConfig(providerId: 'local-trained', modelId: modelId);
+    project.upsertAgent(agent);
+    await store.save(project);
+    return 'به‌عنوان مغزِ ${_targetLabel(targetKey)} هم وصلش کردم؛ از '
+        'حالا اون ایجنت با همین مدل کار می‌کنه.';
+  }
+
+  /// Works on the just-trained model OR a model selected from the
+  /// registry, and never fails silently: when something is missing it
+  /// says exactly what to do (the old version simply stayed disabled
+  /// with no explanation).
+  Future<void> _evaluate() async {
+    final src = await _selectedOrCurrent();
+    if (src == null) {
+      _say('هنوز مدلی نداری — اول «شروع آموزش» رو بزن؛ وقتی آموزش تموم '
+          'بشه مدل خودکار ذخیره می‌شه و ارزیابی هم روشن می‌شه.');
+      return;
+    }
     final dataset = _dataset;
-    if (model == null || tokenizer == null || dataset == null) return;
+    if (dataset == null) {
+      _say('برای ارزیابی اول دیتاست رو بساز (بخش ۲) تا چند جمله برای '
+          'امتحان‌گرفتن از مدل داشته باشیم.');
+      return;
+    }
     final evalSet =
         dataset.test.isNotEmpty ? dataset.test : dataset.validation;
     if (evalSet.isEmpty) {
       _say('مجموعهٔ ارزیابی خالی است؛ دادهٔ بیشتری وارد کن.');
       return;
     }
-    final loss = model.evaluateLoss(evalSet, tokenizer);
+    final loss = src.model.evaluateLoss(evalSet, src.tokenizer);
     setState(() => _perplexity = ModelSpec.perplexity(loss));
     _say('ارزیابی روی ${evalSet.length} نمونه: زیان '
         '${loss.toStringAsFixed(3)} — پرپلکسیتی '
-        '${_perplexity!.toStringAsFixed(2)}');
+        '${_perplexity!.toStringAsFixed(2)} (هرچه کمتر، بهتر)');
   }
 
   Future<void> _registerCurrent() async {
     final model = _model;
     final tokenizer = _tokenizer;
-    if (model == null || tokenizer == null) return;
+    if (model == null || tokenizer == null) {
+      _say(_selectedModelId != null
+          ? 'این مدل همین حالا توی رجیستری هست ✅ — پایین صفحه توی '
+              'بخش ۵ می‌بینیش. (مدل‌ها بعد از آموزش خودکار ذخیره می‌شن.)'
+          : 'هنوز مدلی آموزش ندادی — اول داده بده و «شروع آموزش» رو '
+              'بزن؛ ذخیره بعد از آموزش خودکاره.');
+      return;
+    }
     final meta = await widget.registry.register(
       name: _nameController.text.trim().isEmpty
           ? 'مدل بدون نام'
@@ -195,8 +316,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
       },
     );
     await _reloadModels();
+    setState(() => _selectedModelId = meta.id);
+    var extra = '';
+    final target = _targetKey;
+    if (target != null) {
+      final assigned = await _assignToAgent(target, meta.id);
+      if (assigned != null) extra = ' $assigned';
+    }
     _say('مدل «${meta.name}» در رجیستری ثبت شد '
-        '(${_paramLabel(meta.parameterCount)} پارامتر واقعی).');
+        '(${_paramLabel(meta.parameterCount)} پارامتر واقعی).$extra');
   }
 
   Future<({NeuralLanguageModel model, WordTokenizer tokenizer})?>
@@ -366,6 +494,36 @@ class _TrainingScreenState extends State<TrainingScreen> {
               ),
           ],
         ),
+        const SizedBox(height: CairnSpacing.sm),
+        Text('این مدل مال کیه؟ (هدف آموزش)',
+            style: theme.textTheme.titleSmall),
+        const SizedBox(height: CairnSpacing.xs),
+        DropdownButton<String?>(
+          value: _targetKey,
+          isExpanded: true,
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('مدل مستقل — برای همهٔ ایجنت‌ها'),
+            ),
+            for (final p in _projects)
+              for (final a in p.agents)
+                DropdownMenuItem<String?>(
+                  value: '${p.id}/${a.id}',
+                  child: Text('مغزِ ایجنت «${a.name}» — پروژهٔ «${p.name}»'),
+                ),
+          ],
+          onChanged: (v) => setState(() => _targetKey = v),
+        ),
+        Text(
+          _targetKey == null
+              ? 'مدل مستقل می‌سازی: بعد از آموزش می‌ره توی قفسهٔ مدل‌ها '
+                  '(رجیستری) و هر ایجنتی می‌تونه از کنسول تست یا '
+                  'تنظیماتش انتخابش کنه.'
+              : 'بعد از آموزش، این مدل خودکار می‌شه مغزِ '
+                  '${_targetLabel(_targetKey!)} و همونجا ذخیره می‌شه.',
+          style: theme.textTheme.bodySmall,
+        ),
         const SizedBox(height: CairnSpacing.lg),
         Text('۲) دادهٔ خام (هر خط یک نمونه)',
             style: theme.textTheme.titleMedium),
@@ -453,16 +611,24 @@ class _TrainingScreenState extends State<TrainingScreen> {
               label: const Text('شروع آموزش'),
             ),
             OutlinedButton.icon(
-              onPressed: _model == null ? null : _evaluate,
+              onPressed: _busy ? null : _evaluate,
               icon: const Icon(Icons.analytics_outlined),
               label: const Text('ارزیابی (پرپلکسیتی)'),
             ),
             OutlinedButton.icon(
-              onPressed: _model == null ? null : _registerCurrent,
+              onPressed: _busy ? null : _registerCurrent,
               icon: const Icon(Icons.save_outlined),
               label: const Text('ثبت در رجیستری'),
             ),
           ],
+        ),
+        const SizedBox(height: CairnSpacing.xs),
+        Text(
+          '💡 نگران ذخیره نباش: به‌محض این‌که آموزش تموم بشه، مدل '
+          'خودکار توی رجیستری (بخش ۵، پایین همین صفحه) ذخیره می‌شه و '
+          'می‌تونی توی کنسول تست انتخابش کنی. این دو دکمه همیشه قابل '
+          'زدنن؛ اگه چیزی کم باشه خودشون می‌گن چی کار کنی.',
+          style: theme.textTheme.bodySmall,
         ),
         if (_losses.isNotEmpty) ...[
           const SizedBox(height: CairnSpacing.sm),

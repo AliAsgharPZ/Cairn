@@ -98,13 +98,19 @@ class _StudioShellState extends State<StudioShell> {
     });
   }
 
+  /// All screens live in an [IndexedStack]: switching tabs must never
+  /// destroy in-progress work (a trained-but-unregistered model, a
+  /// half-filled form). Previously a plain switch rebuilt the selected
+  /// screen from scratch on every tab change, silently discarding the
+  /// in-memory trained model and leaving the Training screen's
+  /// evaluate/register buttons permanently disabled — the dead end the
+  /// owner hit on 2026-10-21.
   Widget _body() {
-    switch (_index) {
-      case 0:
-        return ProjectsScreen(
-            store: widget.store, onOpenProject: _openProject);
-      case 1:
-        return AgentEditorScreen(
+    return IndexedStack(
+      index: _index,
+      children: [
+        ProjectsScreen(store: widget.store, onOpenProject: _openProject),
+        AgentEditorScreen(
           store: widget.store,
           project: _selectedProject,
           registry: widget.registry,
@@ -113,9 +119,8 @@ class _StudioShellState extends State<StudioShell> {
           skillStore: widget.skillStore,
           skills: _skills,
           onSkillsChanged: _reloadSkills,
-        );
-      case 2:
-        return TestConsoleScreen(
+        ),
+        TestConsoleScreen(
           project: _selectedProject,
           registry: widget.registry,
           providerConfigs: _providerConfigs,
@@ -123,30 +128,29 @@ class _StudioShellState extends State<StudioShell> {
           onOpenSettings: () => setState(() => _index = 5),
           skillRegistry: SkillRegistry(_skills),
           modelRegistry: _modelRegistry,
-        );
-      case 3:
-        return DevicesScreen(
+        ),
+        DevicesScreen(
           projects: widget.store,
           skills: widget.skillStore,
           baseDir: widget.store.baseDir,
           seedStore: widget.seedStore,
           registry: widget.registry,
-        );
-      case 4:
-        return TrainingScreen(
+        ),
+        TrainingScreen(
           baseDir: widget.store.baseDir,
           registry: _modelRegistry,
           settingsStore: widget.settingsStore,
           onProvidersChanged: _reloadProviders,
-        );
-      default:
-        return SettingsScreen(
+          projectStore: widget.store,
+        ),
+        SettingsScreen(
           settingsStore: widget.settingsStore,
           keyStore: widget.keyStore,
           onChanged: _reloadProviders,
           modelRegistry: _modelRegistry,
-        );
-    }
+        ),
+      ],
+    );
   }
 
   /// The shared registry of locally trained models (M9), rooted at
