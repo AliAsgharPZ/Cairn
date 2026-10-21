@@ -6,6 +6,7 @@ export 'src/blueprint.dart';
 export 'src/budget.dart';
 export 'src/ids.dart';
 export 'src/journal.dart';
+export 'src/capabilities.dart';
 export 'src/project.dart';
 export 'src/project_archive.dart';
 export 'src/skill.dart';

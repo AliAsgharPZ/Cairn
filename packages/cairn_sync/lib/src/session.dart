@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cairn_core/cairn_core.dart';
 
+import 'framing.dart';
 import 'identity.dart';
 import 'pairing.dart';
 
@@ -24,45 +24,6 @@ import 'pairing.dart';
 //              so both converge to identical state, then sends done.
 
 const String _authLabel = 'cairn-sync-auth-v1';
-
-Uint8List _frame(Map<String, Object?> json) {
-  final payload = utf8.encode(jsonEncode(json));
-  final out = Uint8List(4 + payload.length);
-  ByteData.view(out.buffer).setUint32(0, payload.length, Endian.little);
-  out.setRange(4, out.length, payload);
-  return out;
-}
-
-Stream<Map<String, Object?>> _decode(Stream<List<int>> source) {
-  final controller = StreamController<Map<String, Object?>>();
-  final buffer = BytesBuilder(copy: false);
-  var expected = -1;
-  void drain() {
-    while (true) {
-      if (expected < 0) {
-        if (buffer.length < 4) return;
-        final bytes = buffer.takeBytes();
-        expected = ByteData.view(Uint8List.fromList(bytes.sublist(0, 4)).buffer)
-            .getUint32(0, Endian.little);
-        if (bytes.length > 4) buffer.add(bytes.sublist(4));
-      }
-      if (buffer.length < expected) return;
-      final bytes = buffer.takeBytes();
-      final payload = bytes.sublist(0, expected);
-      if (bytes.length > expected) buffer.add(bytes.sublist(expected));
-      expected = -1;
-      controller
-          .add((jsonDecode(utf8.decode(payload)) as Map).cast<String, Object?>());
-    }
-  }
-
-  final sub = source.listen((chunk) {
-    buffer.add(chunk);
-    drain();
-  }, onError: controller.addError, onDone: controller.close);
-  controller.onCancel = () => sub.cancel();
-  return controller.stream;
-}
 
 /// The outcome of one completed sync session.
 class SyncSessionResult {
@@ -100,7 +61,7 @@ class SyncSession {
     Stream<List<int>> incoming,
     StreamSink<List<int>> outgoing,
   ) async {
-    final iterator = StreamIterator(_decode(incoming));
+    final iterator = StreamIterator(decodeFrames(incoming));
 
     Future<Map<String, Object?>> next(String what) async {
       if (!await iterator.moveNext()) {
@@ -109,7 +70,7 @@ class SyncSession {
       return iterator.current;
     }
 
-    void send(Map<String, Object?> message) => outgoing.add(_frame(message));
+    void send(Map<String, Object?> message) => outgoing.add(frameMessage(message));
 
     try {
       // 1. hello

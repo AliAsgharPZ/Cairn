@@ -166,7 +166,26 @@ Last updated: 2026-10-21
   secure storage, pairing by pasted offer + SAS compare, paired
   device list, server start / "sync now"), then M8.
 
-## M8 — Compute overflow + optional self-hosted relay ⬜
+## M8 — Compute overflow + optional self-hosted relay 🔵
+
+- ✅ Routing (`cairn_core/capabilities.dart`): DeviceCapabilities /
+  StepRequirements / OverflowRouter — local-first; overflow ONLY when
+  the local device fails hard requirements (no fixed RAM threshold);
+  eligible peers ranked by capability score; when nobody is eligible
+  the step is blocked with the unmet requirements listed, never
+  silently downgraded. 6 tests; core now **47/47**.
+- ✅ Execution protocol (`cairn_sync/overflow.dart`): mutual-auth
+  handshake (paired keys) + invoke/result framing (shared framing
+  codec extracted). **Destination-side re-validation**: the executing
+  device enforces its own remote allowlist and refuses sensitive
+  tools remotely unless its owner enabled them; refusals are normal
+  error results. `RemoteTool` adapter in cairn_runtime lets the
+  orchestrator call peer tools like local ones (approval gates and
+  journal unchanged). Tests: sync pkg **13/13**, runtime **17/17**.
+- ⬜ App wiring: publish this device's capabilities to peers, show
+  routing in the console, an overflow-server toggle in Devices with
+  the owner's sensitive-tools switch. Optional self-hosted relay:
+  deferred by the approved design (LAN + Tailscale cover v1).
 ## M9 — Fine-tune pathway + security hardening ⬜
 ## M9 — Model-creation & training pathway + security hardening ⬜
 
