@@ -89,6 +89,56 @@ class S {
           'Honestly: this is a tiny brain for learning and experimenting — it is not ChatGPT and will not write great sentences.';
   String get trainSampleButton =>
       fa ? 'یه مثال آماده بذار' : 'Fill a ready sample';
+  // Test console
+  String get cApprovePlan => fa ? 'تأیید اجرای پلن' : 'Approve plan execution';
+  String get cApproveTool => fa ? 'تأیید فراخوانی ابزار' : 'Approve tool call';
+  String cPlanBody(String? d) => fa
+      ? 'ایجنت می‌خواهد این هدف را اجرا کند:\n\n${d ?? ''}'
+      : 'The agent wants to run this goal:\n\n${d ?? ''}';
+  String cToolBody(String? toolId, String? d) => fa
+      ? 'ابزار «${toolId ?? ''}» برای این گام لازم است:\n\n${d ?? ''}'
+      : 'The tool "${toolId ?? ''}" is needed for this step:\n\n${d ?? ''}';
+  String get cReject => fa ? 'رد' : 'Reject';
+  String get cApprove => fa ? 'تأیید' : 'Approve';
+  String get cWriteInstructionFirst =>
+      fa ? 'اول یک دستور بنویس' : 'Write an instruction first';
+  String cProviderNotConfigured(String id) => fa
+      ? 'ارائه‌دهندهٔ «$id» پیکربندی نشده است. از بخش تنظیمات اضافه‌اش کن.'
+      : 'Provider "$id" is not configured. Add it in Settings.';
+  String cUnexpectedError(String e) =>
+      fa ? 'خطای غیرمنتظره: $e' : 'Unexpected error: $e';
+  String cBalanceNote(int n) => fa
+      ? 'تقسیم بار روشن است: گام‌های ابزار بین این دستگاه و $n دستگاه جفت‌شده پخش می‌شوند (اول شبکهٔ محلی، اینترنت آخر).'
+      : 'Load balancing is on: tool steps are shared between this device and $n paired device(s) — local network first, internet last.';
+  String get cOpenProjectFirst => fa
+      ? 'اول از بخش «پروژه‌ها» یک پروژه را باز کن.'
+      : 'Open a project from the Projects section first.';
+  String get cNoAgentYet => fa
+      ? 'این پروژه هنوز ایجنتی ندارد؛ از «ویرایشگر ایجنت» یکی بساز.'
+      : 'This project has no agent yet — create one in the Agent Editor.';
+  String get cTitle => fa ? 'کنسول تست' : 'Test Console';
+  String get cAgent => fa ? 'ایجنت' : 'Agent';
+  String cModelLine(String p, String m) =>
+      fa ? 'مدل: $p / $m' : 'Model: $p / $m';
+  String get cInstruction => fa ? 'دستور برای ایجنت' : 'Instruction for the agent';
+  String get cInstructionHint => fa
+      ? 'مثلاً: ساعت الان رو بگو و بعد ۱۲ × ۸ رو حساب کن'
+      : 'e.g. Tell me the time, then compute 12 × 8';
+  String get cBalanceTitle =>
+      fa ? 'تقسیم بار بین دستگاه‌های جفت‌شده' : 'Load balancing across paired devices';
+  String get cBalanceSubtitle => fa
+      ? 'گام‌های ابزار بین این دستگاه و دستگاه‌های جفت‌شده‌ات پخش می‌شن — هر دستگاهی می‌تونه به بقیه کمک کنه؛ اول شبکهٔ محلی، اینترنت آخرین گزینه‌ست.'
+      : 'Tool steps are shared between this device and your paired devices — any device can help the others; local network first, internet is the last resort.';
+  String get cRun => fa ? 'اجرا' : 'Run';
+  String get cCancelRun => fa ? 'لغو اجرا' : 'Cancel run';
+  String get cGoSettings => fa ? 'رفتن به تنظیمات' : 'Go to Settings';
+  String cCompleted(String summary) =>
+      fa ? '✅ تکمیل شد — $summary' : '✅ Completed — $summary';
+  String get cRunning => fa ? 'در حال اجرا…' : 'Running…';
+  String get cEventsHint => fa
+      ? 'رویدادهای اجرا (پلن، گام‌ها، تأییدها) اینجا زنده نمایش داده می‌شوند.'
+      : 'Run events (plan, steps, approvals) appear here live.';
+
   String get trainArchHelp => fa
       ? 'پنهان = اندازهٔ مغز (بزرگ‌تر یعنی باهوش‌تر ولی کندتر) — بافت = چند کلمهٔ قبلی رو یادش می‌مونه — دوره = چند بار کل مثال‌ها رو از اول تا آخر می‌خونه. برای شروع همون پیش‌فرض‌ها (۳۲، ۳، ۳۰) خوبه، دست نزن.'
       : 'Hidden = brain size (bigger means smarter but slower) — Context = how many previous words it remembers — Epochs = how many times it re-reads all the examples. The defaults (32, 3, 30) are a good start — leave them.';

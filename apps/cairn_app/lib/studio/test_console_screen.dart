@@ -7,6 +7,7 @@ import 'package:cairn_sync/cairn_sync.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'device_identity.dart';
 import 'provider_factory.dart';
@@ -63,6 +64,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   int _journalSeen = 0;
   RunOutcome? _outcome;
   String? _configError;
+  bool _providerError = false;
   CancelToken? _cancelToken;
   Timer? _poller;
 
@@ -97,26 +99,27 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
 
   Future<bool> _approvalGate(ApprovalRequest request) async {
     if (!mounted) return false;
+    final s = S.of(context);
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(request.kind == 'plan'
-            ? 'تأیید اجرای پلن'
-            : 'تأیید فراخوانی ابزار'),
+            ? s.cApprovePlan
+            : s.cApproveTool),
         content: Text(
           request.kind == 'plan'
-              ? 'ایجنت می‌خواهد این هدف را اجرا کند:\n\n${request.description}'
-              : 'ابزار «${request.toolId}» برای این گام لازم است:\n\n${request.description}',
+              ? s.cPlanBody(request.description)
+              : s.cToolBody(request.toolId, request.description),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('رد'),
+            child: Text(s.cReject),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأیید'),
+            child: Text(s.cApprove),
           ),
         ],
       ),
@@ -125,18 +128,21 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   }
 
   Future<void> _run() async {
+    final s = S.of(context);
     final project = widget.project;
     final agent = _agent;
     if (project == null || agent == null) return;
     final instruction = _instruction.text.trim();
     if (instruction.isEmpty) {
-      setState(() => _configError = 'اول یک دستور بنویس');
+      setState(() => _configError = s.cWriteInstructionFirst);
       return;
     }
     final config = _configFor(agent);
     if (config == null) {
-      setState(() => _configError =
-          'ارائه‌دهندهٔ «${agent.model.providerId}» پیکربندی نشده است. از بخش تنظیمات اضافه‌اش کن.');
+      setState(() {
+        _providerError = true;
+        _configError = s.cProviderNotConfigured(agent.model.providerId);
+      });
       return;
     }
     final journal = Journal();
@@ -147,6 +153,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
       _journalSeen = 0;
       _outcome = null;
       _configError = null;
+      _providerError = false;
       _cancelToken = token;
     });
     _poller?.cancel();
@@ -177,7 +184,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
       if (mounted) setState(() => _outcome = outcome);
     } catch (e) {
       if (mounted) {
-        setState(() => _configError = 'خطای غیرمنتظره: $e');
+        setState(() => _configError = s.cUnexpectedError('$e'));
       }
     } finally {
       if (balanced != null) {
@@ -202,6 +209,8 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   /// devices, local network first and internet last. Returns null
   /// when balancing is off or no peer is reachable; the plain local
   /// registry then runs the agent, unchanged.
+  String _balanceNoteFor(int n) => S.of(context).cBalanceNote(n);
+
   Future<({ToolRegistry registry, List<OverflowClient> clients, String note})?>
       _prepareBalancedRegistry() async {
     if (!_balance || widget.seedStore == null || widget.baseDir == null) {
@@ -281,29 +290,28 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
     return (
       registry: ToolRegistry(tools),
       clients: clients.values.toList(),
-      note: 'تقسیم بار روشن است: گام‌های ابزار بین این دستگاه و '
-          '${clients.length} دستگاه جفت‌شده پخش می‌شوند '
-          '(اول شبکهٔ محلی، اینترنت آخر).',
+      note: _balanceNoteFor(clients.length),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     final project = widget.project;
     if (project == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(CairnSpacing.xxl),
-          child: Text('اول از بخش «پروژه‌ها» یک پروژه را باز کن.'),
+          padding: const EdgeInsets.all(CairnSpacing.xxl),
+          child: Text(s.cOpenProjectFirst),
         ),
       );
     }
     if (project.agents.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(CairnSpacing.xxl),
-          child: Text('این پروژه هنوز ایجنتی ندارد؛ از «ویرایشگر ایجنت» یکی بساز.'),
+          padding: const EdgeInsets.all(CairnSpacing.xxl),
+          child: Text(s.cNoAgentYet),
         ),
       );
     }
@@ -317,12 +325,12 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
         children: [
           Row(
             children: [
-              Text('کنسول تست', style: theme.textTheme.headlineMedium),
+              Text(s.cTitle, style: theme.textTheme.headlineMedium),
               const SizedBox(width: CairnSpacing.md),
               Expanded(
                 child: DropdownButtonFormField<String>(
                   initialValue: agent.id,
-                  decoration: const InputDecoration(labelText: 'ایجنت'),
+                  decoration: InputDecoration(labelText: s.cAgent),
                   items: [
                     for (final a in project.agents)
                       DropdownMenuItem(value: a.id, child: Text(a.name)),
@@ -342,7 +350,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
           ),
           const SizedBox(height: CairnSpacing.md),
           Text(
-            'مدل: ${agent.model.providerId} / ${agent.model.modelId}',
+            s.cModelLine(agent.model.providerId, agent.model.modelId),
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: CairnSpacing.sm),
@@ -351,20 +359,18 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
             minLines: 2,
             maxLines: 4,
             enabled: !_running,
-            decoration: const InputDecoration(
-              labelText: 'دستور برای ایجنت',
-              hintText: 'مثلاً: ساعت الان رو بگو و بعد ۱۲ × ۸ رو حساب کن',
+            decoration: InputDecoration(
+              labelText: s.cInstruction,
+              hintText: s.cInstructionHint,
             ),
           ),
           const SizedBox(height: CairnSpacing.sm),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('تقسیم بار بین دستگاه‌های جفت‌شده'),
+            title: Text(s.cBalanceTitle),
             subtitle: Text(
               _balanceNote ??
-                  'گام‌های ابزار بین این دستگاه و دستگاه‌های جفت‌شده‌ات '
-                      'پخش می‌شن — هر دستگاهی می‌تونه به بقیه کمک کنه؛ '
-                      'اول شبکهٔ محلی، اینترنت آخرین گزینه‌ست.',
+                  s.cBalanceSubtitle,
             ),
             value: _balance,
             onChanged:
@@ -375,14 +381,14 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
               FilledButton.icon(
                 onPressed: _running ? null : _run,
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('اجرا'),
+                label: Text(s.cRun),
               ),
               const SizedBox(width: CairnSpacing.sm),
               if (_running)
                 OutlinedButton.icon(
                   onPressed: () => _cancelToken?.cancel(),
                   icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('لغو اجرا'),
+                  label: Text(s.cCancelRun),
                 ),
               if (_configError != null) ...[
                 const SizedBox(width: CairnSpacing.md),
@@ -390,10 +396,10 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
                   child: Text(_configError!,
                       style: const TextStyle(color: CairnColors.error)),
                 ),
-                if (_configError!.contains('پیکربندی نشده'))
+                if (_providerError)
                   TextButton(
                     onPressed: widget.onOpenSettings,
-                    child: const Text('رفتن به تنظیمات'),
+                    child: Text(s.cGoSettings),
                   ),
               ],
             ],
@@ -409,7 +415,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
               ),
               child: Text(
                 _outcome!.succeeded
-                    ? '✅ تکمیل شد — ${_outcome!.summary ?? ''}'
+                    ? s.cCompleted(_outcome!.summary ?? '')
                     : '⛔ ${_outcome!.run.status.name} — ${_outcome!.failureReason ?? ''}',
                 style: theme.textTheme.bodyLarge,
               ),
@@ -420,8 +426,8 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
                 ? Center(
                     child: Text(
                       _running
-                          ? 'در حال اجرا…'
-                          : 'رویدادهای اجرا (پلن، گام‌ها، تأییدها) اینجا زنده نمایش داده می‌شوند.',
+                          ? s.cRunning
+                          : s.cEventsHint,
                       style: theme.textTheme.bodySmall,
                     ),
                   )
