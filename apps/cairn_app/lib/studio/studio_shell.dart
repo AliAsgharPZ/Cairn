@@ -86,6 +86,20 @@ class _StudioShellState extends State<StudioShell> {
   bool _syncing = false;
   Timer? _autoSyncTimer;
 
+  /// Pages slide between destinations (the shell's main animation);
+  /// every page is kept alive, so sliding away never loses work.
+  final PageController _pageController = PageController();
+
+  void _goTo(int index) {
+    if (index == _index) return;
+    setState(() => _index = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +115,7 @@ class _StudioShellState extends State<StudioShell> {
   @override
   void dispose() {
     _autoSyncTimer?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -176,63 +191,153 @@ class _StudioShellState extends State<StudioShell> {
   }
 
   void _openProject(AgentProject project) {
-    setState(() {
-      _selectedProject = project;
-      _index = 1; // editor destination
-    });
+    setState(() => _selectedProject = project);
+    _goTo(1); // editor destination
   }
 
-  /// All screens live in an [IndexedStack]: switching tabs must never
+  /// Screens live in a [PageView] whose pages are kept alive
+  /// ([_KeepAlivePage]): sliding between tabs animates, and must never
   /// destroy in-progress work (a trained-but-unregistered model, a
-  /// half-filled form). Previously a plain switch rebuilt the selected
+  /// half-filled form). A plain switch used to rebuild the selected
   /// screen from scratch on every tab change, silently discarding the
-  /// in-memory trained model and leaving the Training screen's
-  /// evaluate/register buttons permanently disabled — the dead end the
-  /// owner hit on 2026-10-21.
+  /// in-memory trained model — the dead end the owner hit on
+  /// 2026-10-21. Swiping is disabled; only the nav controls move pages,
+  /// so the selected destination and the visible page never desync.
   Widget _body() {
-    return IndexedStack(
-      index: _index,
+    return PageView(
+      controller: _pageController,
+      physics: const NeverScrollableScrollPhysics(),
+      onPageChanged: (i) => setState(() => _index = i),
       children: [
-        ProjectsScreen(store: widget.store, onOpenProject: _openProject),
-        AgentEditorScreen(
-          store: widget.store,
-          project: _selectedProject,
-          registry: widget.registry,
-          providerConfigs: _providerConfigs,
-          onProjectChanged: () => setState(() {}),
-          skillStore: widget.skillStore,
-          skills: _skills,
-          onSkillsChanged: _reloadSkills,
+        _KeepAlivePage(
+          child: ProjectsScreen(
+            store: widget.store,
+            onOpenProject: _openProject,
+          ),
         ),
-        TestConsoleScreen(
-          project: _selectedProject,
-          registry: widget.registry,
-          providerConfigs: _providerConfigs,
-          keyStore: widget.keyStore,
-          onOpenSettings: () => setState(() => _index = 4),
-          skillRegistry: SkillRegistry(_skills),
-          modelRegistry: _modelRegistry,
+        _KeepAlivePage(
+          child: AgentEditorScreen(
+            store: widget.store,
+            project: _selectedProject,
+            registry: widget.registry,
+            providerConfigs: _providerConfigs,
+            onProjectChanged: () => setState(() {}),
+            skillStore: widget.skillStore,
+            skills: _skills,
+            onSkillsChanged: _reloadSkills,
+          ),
         ),
-        TrainingScreen(
-          baseDir: widget.store.baseDir,
-          registry: _modelRegistry,
-          settingsStore: widget.settingsStore,
-          onProvidersChanged: _reloadProviders,
-          projectStore: widget.store,
+        _KeepAlivePage(
+          child: TestConsoleScreen(
+            project: _selectedProject,
+            registry: widget.registry,
+            providerConfigs: _providerConfigs,
+            keyStore: widget.keyStore,
+            onOpenSettings: () => _goTo(4),
+            skillRegistry: SkillRegistry(_skills),
+            modelRegistry: _modelRegistry,
+          ),
         ),
-        SettingsScreen(
-          settingsStore: widget.settingsStore,
-          keyStore: widget.keyStore,
-          onChanged: _reloadProviders,
-          modelRegistry: _modelRegistry,
-          appSettings: widget.appSettings,
-          onAppSettingsChanged: widget.onAppSettingsChanged,
-          projectsStore: widget.store,
-          skillStore: widget.skillStore,
-          seedStore: widget.seedStore,
-          toolRegistry: widget.registry,
+        _KeepAlivePage(
+          child: TrainingScreen(
+            baseDir: widget.store.baseDir,
+            registry: _modelRegistry,
+            settingsStore: widget.settingsStore,
+            onProvidersChanged: _reloadProviders,
+            projectStore: widget.store,
+          ),
+        ),
+        _KeepAlivePage(
+          child: SettingsScreen(
+            settingsStore: widget.settingsStore,
+            keyStore: widget.keyStore,
+            onChanged: _reloadProviders,
+            modelRegistry: _modelRegistry,
+            appSettings: widget.appSettings,
+            onAppSettingsChanged: widget.onAppSettingsChanged,
+            projectsStore: widget.store,
+            skillStore: widget.skillStore,
+            seedStore: widget.seedStore,
+            toolRegistry: widget.registry,
+          ),
         ),
       ],
+    );
+  }
+
+  /// The floating capsule navigation bar (compact widths): a rounded
+  /// pill with a hairline border (Oracle: depth is tonal, no shadows);
+  /// the selected destination expands into a filled pill with its
+  /// label, animated by [AnimatedContainer].
+  Widget _capsuleNav(BuildContext context, List<_Destination> destinations) {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          CairnSpacing.md,
+          CairnSpacing.xs,
+          CairnSpacing.md,
+          CairnSpacing.sm,
+        ),
+        child: Container(
+          height: 62,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(31),
+            border: Border.all(color: scheme.outline),
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < destinations.length; i++)
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(31),
+                    onTap: () => _goTo(i),
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: i == _index ? 14 : 10,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: i == _index
+                              ? scheme.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              destinations[i].icon,
+                              size: 21,
+                              color: i == _index
+                                  ? scheme.onPrimary
+                                  : scheme.onSurface,
+                            ),
+                            if (i == _index) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                destinations[i].label,
+                                style: TextStyle(
+                                  color: scheme.onPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -291,8 +396,7 @@ class _StudioShellState extends State<StudioShell> {
                     children: [
                       NavigationRail(
                         selectedIndex: _index,
-                        onDestinationSelected: (i) =>
-                            setState(() => _index = i),
+                        onDestinationSelected: _goTo,
                         labelType: NavigationRailLabelType.all,
                         destinations: [
                           for (final d in destinations)
@@ -314,15 +418,31 @@ class _StudioShellState extends State<StudioShell> {
         ],
       ),
       bottomNavigationBar: MediaQuery.sizeOf(context).width < 720
-          ? NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: [
-                for (final d in destinations)
-                  NavigationDestination(icon: Icon(d.icon), label: d.label),
-              ],
-            )
+          ? _capsuleNav(context, destinations)
           : null,
     );
+  }
+}
+
+/// Keeps a [PageView] page's state alive after it has been built, so
+/// sliding away and back never loses in-progress work.
+class _KeepAlivePage extends StatefulWidget {
+  const _KeepAlivePage({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
