@@ -16,14 +16,18 @@ jobs:
           channel: stable
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
-      - name: ToolHost named-pipe test (real Windows pipe round trip)
-        # Hard cap: run 39635044715 hung ~1.5h in this step before the
-        # transport's shutdown contract was fixed; never again.
+      - name: ToolHost exe stdio proof (real Windows child-process round trip)
+        # The shipped transport is the host child's stdio (the named
+        # pipe round trip repeatedly hung in CI — runs 39635044715,
+        # 39653424975, 39658461234 — so the pipe is not a build gate).
         timeout-minutes: 5
         working-directory: packages/cairn_toolhost
+        env:
+          CAIRN_TOOLHOST_EXE: ${{ runner.temp }}\cairn_tool_host.exe
         run: |
           dart pub get
-          dart test test/named_pipe_test.dart
+          dart compile exe bin/cairn_tool_host.dart -o $env:CAIRN_TOOLHOST_EXE
+          dart test test/toolhost_exe_stdio_test.dart
       - name: Test
         working-directory: apps/cairn_app
         run: flutter test
