@@ -7,17 +7,60 @@ const int kProjectSchemaVersion = 1;
 /// An agent project: the unit the studio creates, saves, exports (as a
 /// `.cairn.json` file / project ZIP) and syncs between the user's devices.
 /// Contains one or more agent blueprints.
+/// Something a project produced besides agents — today, a trained
+/// model (Flow 2's hand-off, seen from the project's side); future
+/// output kinds join through [kind]. [refId] points at the producing
+/// system's record — for models, the model-registry id on the device
+/// that trained it. Model files are device-local, so on another
+/// device an output is an honest reference, not the weights.
+class ProjectOutput {
+  ProjectOutput({
+    String? id,
+    required this.kind,
+    required this.name,
+    required this.refId,
+    DateTime? createdAt,
+  })  : id = id ?? newId(),
+        createdAt = createdAt ?? DateTime.now().toUtc();
+
+  final String id;
+
+  /// 'model' today.
+  final String kind;
+  final String name;
+  final String refId;
+  final DateTime createdAt;
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'kind': kind,
+        'name': name,
+        'refId': refId,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory ProjectOutput.fromJson(Map<String, Object?> json) => ProjectOutput(
+        id: json['id'] as String?,
+        kind: json['kind'] as String? ?? 'model',
+        name: json['name'] as String? ?? '',
+        refId: json['refId'] as String? ?? '',
+        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      );
+}
+
 class AgentProject {
   AgentProject({
     String? id,
     required this.name,
     this.description = '',
     List<AgentBlueprint>? agents,
+    List<ProjectOutput>? outputs,
     DateTime? createdAt,
     DateTime? updatedAt,
     this.schemaVersion = kProjectSchemaVersion,
   })  : id = id ?? newId(),
         agents = agents ?? [],
+        outputs = outputs ?? [],
         createdAt = createdAt ?? DateTime.now().toUtc(),
         updatedAt = updatedAt ?? DateTime.now().toUtc();
 
@@ -25,9 +68,25 @@ class AgentProject {
   String name;
   String description;
   final List<AgentBlueprint> agents;
+
+  /// What this project has produced (trained models). A project is
+  /// not only a home for agents: training into a project records the
+  /// model here.
+  final List<ProjectOutput> outputs;
+
   final DateTime createdAt;
   DateTime updatedAt;
   final int schemaVersion;
+
+  /// Records [output] on the project, replacing any earlier output of
+  /// the same kind pointing at the same record (re-registering a
+  /// model never duplicates its entry).
+  void addOutput(ProjectOutput output) {
+    outputs.removeWhere(
+        (o) => o.kind == output.kind && o.refId == output.refId);
+    outputs.add(output);
+    updatedAt = DateTime.now().toUtc();
+  }
 
   AgentBlueprint? agentById(String agentId) {
     for (final a in agents) {
@@ -80,6 +139,7 @@ class AgentProject {
         'name': name,
         'description': description,
         'agents': agents.map((a) => a.toJson()).toList(),
+        'outputs': outputs.map((o) => o.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -91,6 +151,10 @@ class AgentProject {
         agents: (json['agents'] as List? ?? const [])
             .map((e) =>
                 AgentBlueprint.fromJson((e as Map).cast<String, Object?>()))
+            .toList(),
+        outputs: (json['outputs'] as List? ?? const [])
+            .map((e) =>
+                ProjectOutput.fromJson((e as Map).cast<String, Object?>()))
             .toList(),
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),

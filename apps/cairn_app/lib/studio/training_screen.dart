@@ -86,8 +86,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (mounted) setState(() => _projects = projects);
   }
 
-  /// Human label for a target key, e.g. ایجنت «x» — پروژهٔ «y».
+  /// Human label for a target key: `output:<projectId>` reads as the
+  /// project itself; `<projectId>/<agentId>` as that agent.
   String _targetLabel(String key) {
+    if (key.startsWith('output:')) {
+      final projectId = key.substring('output:'.length);
+      for (final p in _projects) {
+        if (p.id == projectId) return 'پروژهٔ «${p.name}»';
+      }
+      return key;
+    }
     final parts = key.split('/');
     for (final p in _projects) {
       if (p.id != parts[0]) continue;
@@ -229,7 +237,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           'مدل انتخابش کنی.';
       final target = _targetKey;
       if (target != null) {
-        final assigned = await _assignToAgent(target, meta.id);
+        final assigned = await _placeModel(target, meta);
         if (assigned != null) where = '$where $assigned';
       }
       _say(
@@ -247,20 +255,35 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
   }
 
-  /// Wires [modelId] as the brain (main model) of the agent named by
-  /// [targetKey] (a `projectId/agentId` key). Returns a plain-language
-  /// sentence for the status line, or null if the project/agent is
-  /// gone.
-  Future<String?> _assignToAgent(String targetKey, String modelId) async {
+  /// Places a freshly registered model where the target picker said:
+  /// `output:<projectId>` records it as that project's own output (a
+  /// project can produce models, not only host agents);
+  /// `<projectId>/<agentId>` ALSO wires it as that agent's brain.
+  /// Either way the model is recorded in the project's outputs.
+  /// Returns a plain-language sentence for the status line, or null
+  /// if the project/agent is gone.
+  Future<String?> _placeModel(String targetKey, RegisteredModel meta) async {
     final store = widget.projectStore;
     if (store == null) return null;
+    if (targetKey.startsWith('output:')) {
+      final project =
+          await store.load(targetKey.substring('output:'.length));
+      if (project == null) return null;
+      project.addOutput(
+          ProjectOutput(kind: 'model', name: meta.name, refId: meta.id));
+      await store.save(project);
+      return 'به‌عنوان خروجیِ ${_targetLabel(targetKey)} هم ثبتش کردم؛ '
+          'توی صفحهٔ «پروژه‌ها» زیر اسم پروژه می‌بینیش.';
+    }
     final parts = targetKey.split('/');
     if (parts.length != 2) return null;
     final project = await store.load(parts[0]);
     final agent = project?.agentById(parts[1]);
     if (project == null || agent == null) return null;
-    agent.model = ModelConfig(providerId: 'local-trained', modelId: modelId);
+    agent.model = ModelConfig(providerId: 'local-trained', modelId: meta.id);
     project.upsertAgent(agent);
+    project.addOutput(
+        ProjectOutput(kind: 'model', name: meta.name, refId: meta.id));
     await store.save(project);
     return 'به‌عنوان مغزِ ${_targetLabel(targetKey)} هم وصلش کردم؛ از '
         'حالا اون ایجنت با همین مدل کار می‌کنه.';
@@ -333,7 +356,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     var extra = '';
     final target = _targetKey;
     if (target != null) {
-      final assigned = await _assignToAgent(target, meta.id);
+      final assigned = await _placeModel(target, meta);
       if (assigned != null) extra = ' $assigned';
     }
     _say(
@@ -527,12 +550,17 @@ class _TrainingScreenState extends State<TrainingScreen> {
               value: null,
               child: Text('مدل مستقل — برای همهٔ ایجنت‌ها'),
             ),
-            for (final p in _projects)
+            for (final p in _projects) ...[
+              DropdownMenuItem<String?>(
+                value: 'output:${p.id}',
+                child: Text('خروجیِ پروژهٔ «${p.name}» — مدل مال این پروژه'),
+              ),
               for (final a in p.agents)
                 DropdownMenuItem<String?>(
                   value: '${p.id}/${a.id}',
                   child: Text('مغزِ ایجنت «${a.name}» — پروژهٔ «${p.name}»'),
                 ),
+            ],
           ],
           onChanged: (v) => setState(() => _targetKey = v),
         ),
@@ -541,8 +569,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
               ? 'مدل مستقل می‌سازی: بعد از آموزش می‌ره توی قفسهٔ مدل‌ها '
                     '(رجیستری) و هر ایجنتی می‌تونه از کنسول تست یا '
                     'تنظیماتش انتخابش کنه.'
-              : 'بعد از آموزش، این مدل خودکار می‌شه مغزِ '
-                    '${_targetLabel(_targetKey!)} و همونجا ذخیره می‌شه.',
+              : _targetKey!.startsWith('output:')
+                  ? 'این پروژه فقط ایجنت نمی‌سازه — مدل هم خروجی می‌ده: '
+                        'بعد از آموزش، مدل به‌عنوان خروجیِ '
+                        '${_targetLabel(_targetKey!)} ثبت می‌شه.'
+                  : 'بعد از آموزش، این مدل خودکار می‌شه مغزِ '
+                        '${_targetLabel(_targetKey!)} و همونجا ذخیره می‌شه.',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: CairnSpacing.lg),

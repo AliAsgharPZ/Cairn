@@ -136,6 +136,7 @@ class ProjectStore {
         name: project.name,
         description: project.description,
         agents: List.of(project.agents),
+        outputs: List.of(project.outputs),
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         schemaVersion: project.schemaVersion,

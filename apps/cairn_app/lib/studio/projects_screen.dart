@@ -241,10 +241,21 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       child: ListTile(
                         title: Text(project.name),
                         subtitle: Text(
-                          s.agentsAndLastChange(
-                            project.agents.length,
-                            _formatDate(project.updatedAt),
-                          ),
+                          [
+                            s.agentsAndLastChange(
+                              project.agents.length,
+                              _formatDate(project.updatedAt),
+                            ),
+                            if (project.outputs.isNotEmpty)
+                              s.projectOutputs(
+                                project.outputs
+                                    .map(
+                                      (o) =>
+                                          '${s.outputKind(o.kind)} «${o.name}»',
+                                    )
+                                    .join('، '),
+                              ),
+                          ].join('\n'),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

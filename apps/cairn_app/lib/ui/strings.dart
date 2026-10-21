@@ -61,6 +61,10 @@ class S {
       fa ? 'خطا در خروجی گرفتن: $e' : 'Export failed: $e';
   String importError(Object e) =>
       fa ? 'خطا در وارد کردن پروژه: $e' : 'Import failed: $e';
+  String outputKind(String kind) =>
+      kind == 'model' ? (fa ? 'مدل' : 'model') : kind;
+  String projectOutputs(String names) =>
+      fa ? 'خروجی‌ها: $names' : 'Outputs: $names';
   String imported(String name) =>
       fa ? 'پروژهٔ «$name» وارد شد' : 'Project “$name” imported';
   String loadError(Object e) =>
