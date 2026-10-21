@@ -54,7 +54,14 @@ Last updated: 2026-10-21
 
 ## Build status (reported separately, per delivery rules)
 
-- Android APK: not built yet.
+- Android APK: **blocked by the build sandbox, not by the code.** The whole
+  toolchain works (JDK/Flutter/Android SDK/Gradle 9.3.1 all verified, wrapper
+  cache seeded, daemon starts and listens), but the sandbox blocks
+  cross-process local TCP, which the Gradle client↔daemon channel requires
+  ("Could not dispatch a message to the daemon — Broken pipe"; a raw Java
+  socket test receives the sandbox's in-band notice that "Other TCP
+  connections is turned off"). Unblocks when the user enables other TCP
+  connections for the assistant in the Muse app settings.
 - Windows binary: cannot be compiled in this Linux environment (by design of
   the approved architecture it is produced by the GitHub Actions
   `windows-latest` workflow / `tools/build_windows.ps1`); not built yet.
