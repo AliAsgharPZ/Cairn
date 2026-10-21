@@ -10,6 +10,11 @@ abstract class Tool {
   /// [ApprovalLevel.sensitiveOnly] (destructive / external / costly tools).
   bool get sensitive;
 
+  /// Whether the tool performs network access. The orchestrator refuses
+  /// such tools when the agent's policy disallows network
+  /// ([PolicyConfig.allowNetwork] == false).
+  bool get requiresNetwork => false;
+
   Future<ToolResult> run(Map<String, Object?> input, ToolContext context);
 }
 

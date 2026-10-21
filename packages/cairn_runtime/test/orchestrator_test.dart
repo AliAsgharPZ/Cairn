@@ -3,7 +3,7 @@ import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:test/test.dart';
 
-class _FakeTool implements Tool {
+class _FakeTool extends Tool {
   _FakeTool({this.sensitive = false, this.failTimes = 0});
   @override
   String get id => 'test.echo';

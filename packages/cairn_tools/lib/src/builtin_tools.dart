@@ -21,7 +21,7 @@ abstract final class BuiltInTools {
 }
 
 /// Returns the current date/time (UTC ISO-8601 and local).
-class ClockNowTool implements Tool {
+class ClockNowTool extends Tool {
   @override
   String get id => 'clock.now';
   @override
@@ -46,7 +46,7 @@ class ClockNowTool implements Tool {
 }
 
 /// Evaluates an arithmetic expression from input {"expression": "2*(3+4)"}.
-class CalcEvalTool implements Tool {
+class CalcEvalTool extends Tool {
   @override
   String get id => 'calc.eval';
   @override
@@ -73,7 +73,7 @@ class CalcEvalTool implements Tool {
 }
 
 /// Word/character statistics for a text.
-class TextStatsTool implements Tool {
+class TextStatsTool extends Tool {
   @override
   String get id => 'text.stats';
   @override
@@ -112,7 +112,7 @@ class TextStatsTool implements Tool {
 }
 
 /// Case/whitespace transforms for a text.
-class TextTransformTool implements Tool {
+class TextTransformTool extends Tool {
   @override
   String get id => 'text.transform';
   @override
@@ -152,7 +152,7 @@ class TextTransformTool implements Tool {
 }
 
 /// Generates a fresh UUID v4.
-class IdUuidTool implements Tool {
+class IdUuidTool extends Tool {
   @override
   String get id => 'id.uuid';
   @override

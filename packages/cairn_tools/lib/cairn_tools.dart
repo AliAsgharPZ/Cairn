@@ -3,3 +3,4 @@ library;
 
 export 'src/builtin_tools.dart';
 export 'src/calc.dart';
+export 'src/platform_tools.dart';

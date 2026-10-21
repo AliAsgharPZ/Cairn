@@ -15,6 +15,7 @@ dependencies:
     path: ../cairn_core
   cairn_runtime:
     path: ../cairn_runtime
+  http: ^1.2.2
 
 dev_dependencies:
   lints: ^4.0.0

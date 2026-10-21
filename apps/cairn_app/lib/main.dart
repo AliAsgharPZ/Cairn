@@ -18,7 +18,14 @@ class CairnApp extends StatelessWidget {
     ToolRegistry? registry,
     ProviderSettingsStore? settingsStore,
     ApiKeyStore? keyStore,
-  })  : registry = registry ?? BuiltInTools.registry(),
+  })  : registry = registry ??
+            ToolRegistry([
+              ...BuiltInTools.all(),
+              // Platform tools are confined to the agent workspace inside
+              // the app's data directory.
+              ...PlatformTools.all(
+                  root: Directory('${store.baseDir.path}/workspace')),
+            ]),
         settingsStore = settingsStore ?? ProviderSettingsStore(store.baseDir),
         // Tests may omit the key store (in-memory); main() always passes the
         // platform secure store.
@@ -50,6 +57,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final docs = await getApplicationDocumentsDirectory();
   final cairnDir = Directory('${docs.path}/cairn');
+  // The agent workspace: the confined root of the platform tools.
+  await Directory('${cairnDir.path}/workspace').create(recursive: true);
   runApp(CairnApp(
     store: ProjectStore(cairnDir),
     settingsStore: ProviderSettingsStore(cairnDir),

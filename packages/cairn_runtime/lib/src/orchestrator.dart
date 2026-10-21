@@ -344,6 +344,10 @@ class Orchestrator {
       if (!agent.tools.any((t) => t.toolId == tool.id)) {
         throw StateError('Tool "${tool.id}" is not declared by this agent');
       }
+      if (tool.requiresNetwork && !agent.policy.allowNetwork) {
+        throw StateError(
+            'Tool "${tool.id}" needs network access, which this agent\'s policy forbids');
+      }
       if (tool.sensitive && agent.policy.approvalLevel != ApprovalLevel.none) {
         journal.append('approval.requested',
             taskId: task.id, data: {'kind': 'tool', 'toolId': tool.id});
