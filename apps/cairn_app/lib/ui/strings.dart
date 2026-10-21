@@ -139,6 +139,94 @@ class S {
       ? 'رویدادهای اجرا (پلن، گام‌ها، تأییدها) اینجا زنده نمایش داده می‌شوند.'
       : 'Run events (plan, steps, approvals) appear here live.';
 
+  // Devices & sync (inside Settings)
+  String dInvalidOffer(String m) =>
+      fa ? 'پیشنهاد نامعتبر است: $m' : 'Invalid offer: $m';
+  String get dPaired => fa ? 'دستگاه جفت شد.' : 'Device paired.';
+  String get dEnterHostFirst =>
+      fa ? 'اول نشانی (IP) دستگاه را وارد کن.' : 'Enter the device address (IP) first.';
+  String get dSyncing => fa ? 'در حال سینک…' : 'Syncing…';
+  String dSyncDone(int p, int sk, int c, int del) => fa
+      ? 'سینک انجام شد — پروژه: $p، مهارت: $sk، تعارض تازه: $c، حذف‌شده: $del'
+      : 'Sync done — projects: $p, skills: $sk, new conflicts: $c, deleted: $del';
+  String dSyncFailed(String e) => fa ? 'سینک ناموفق بود: $e' : 'Sync failed: $e';
+  String dIncomingSync(int p, int c, int del) => fa
+      ? 'سینک ورودی انجام شد — پروژه: $p، تعارض: $c، حذف: $del'
+      : 'Incoming sync done — projects: $p, conflicts: $c, deleted: $del';
+  String dSyncServerFailed(String e) =>
+      fa ? 'سرور سینک شروع نشد: $e' : 'Sync server did not start: $e';
+  String get dOverflowServerOn =>
+      fa ? 'سرور سرریز روشن شد (پورت ۴۷۸۰۱).' : 'Overflow server is on (port 47801).';
+  String dOverflowServerFailed(String e) =>
+      fa ? 'سرور سرریز شروع نشد: $e' : 'Overflow server did not start: $e';
+  String get dFetchingCaps => fa ? 'در حال گرفتن توانمندی‌ها…' : 'Fetching capabilities…';
+  String get dNoCaps =>
+      fa ? 'دستگاه مقابل توانمندی منتشر نمی‌کند.' : 'The other device does not publish capabilities.';
+  String dBlocked(String unmet) => fa ? 'مسدود: $unmet' : 'Blocked: $unmet';
+  String get dRunsHere => fa ? 'روی همین دستگاه اجرا می‌شود' : 'Runs on this device';
+  String get dRunsThere =>
+      fa ? 'روی دستگاه مقابل اجرا می‌شود (تقسیم بار)' : 'Runs on the other device (load balancing)';
+  String get dHas => fa ? 'دارد' : 'yes';
+  String get dHasNot => fa ? 'ندارد' : 'no';
+  String dCapsLine(String name, int cpu, int ram, String gpu, String heavy, String gpuStep) => fa
+      ? 'توانمندی‌های $name: $cpu هسته، $ram MB RAM، GPU: $gpu — مرحلهٔ سنگین RAM: $heavy؛ مرحلهٔ GPU: $gpuStep'
+      : 'Capabilities of $name: $cpu cores, $ram MB RAM, GPU: $gpu — heavy RAM step: $heavy; GPU step: $gpuStep';
+  String dCapsFailed(String e) =>
+      fa ? 'گرفتن توانمندی‌ها ناموفق بود: $e' : 'Fetching capabilities failed: $e';
+  String get dThisDevice => fa ? 'این دستگاه' : 'This device';
+  String dDeviceId(String id) => fa ? 'شناسه: $id' : 'ID: $id';
+  String get dDisplayName => fa ? 'نام نمایشی' : 'Display name';
+  String get dSave => fa ? 'ذخیره' : 'Save';
+  String get dPairNew => fa ? 'جفت‌سازی دستگاه تازه' : 'Pair a new device';
+  String get dPairHelp => fa
+      ? 'در یک دستگاه «ساخت پیشنهاد» را بزن و متنش را اینجا بچسبان؛ در دستگاه دیگر هم همین کار را برعکس انجام بده. کد ۶ رقمی باید در هر دو دستگاه یکسان باشد.'
+      : 'On one device tap "Create pairing offer" and paste its text here; do the reverse on the other device. The 6-digit code must be identical on both.';
+  String get dMakeOffer => fa ? 'ساخت پیشنهاد جفت‌سازی' : 'Create pairing offer';
+  String get dCopyOffer => fa ? 'کپی پیشنهاد' : 'Copy offer';
+  String get dPasteOffer =>
+      fa ? 'پیشنهاد دستگاه دیگر را اینجا بچسبان' : 'Paste the other device\'s offer here';
+  String get dInspectOffer => fa ? 'بررسی پیشنهاد' : 'Inspect offer';
+  String get dSasLabel => fa
+      ? 'کد تأیید (باید با دستگاه دیگر یکسان باشد):'
+      : 'Confirmation code (must match the other device):';
+  String get dPairConfirm =>
+      fa ? 'کدها یکسان‌اند — جفت کن' : 'Codes match — pair';
+  String get dPairedDevices => fa ? 'دستگاه‌های جفت‌شده' : 'Paired devices';
+  String get dNoPairedYet =>
+      fa ? 'هنوز دستگاهی جفت نشده است.' : 'No device is paired yet.';
+  String get dHostLabel => fa ? 'نشانی IP / Tailscale' : 'IP / Tailscale address';
+  String get dSyncNow => fa ? 'سینک کن' : 'Sync now';
+  String get dCapabilities => fa ? 'توانمندی‌ها' : 'Capabilities';
+  String get dUnpair => fa ? 'لغو جفت‌شدن' : 'Unpair';
+  String get dSyncServerTitle => fa
+      ? 'سرور سینک (پذیرش سینک از دستگاه جفت‌شده)'
+      : 'Sync server (accept sync from paired devices)';
+  String get dSyncServerSub =>
+      fa ? 'پورت ۴۷۸۰۰ — فقط دستگاه‌های جفت‌شده' : 'Port 47800 — paired devices only';
+  String get dOverflowTitle => fa ? 'سرریز محاسباتی' : 'Compute overflow';
+  String get dSpecsHelp => fa
+      ? 'مشخصات این دستگاه برای مسیریابی مراحل سنگین. تعداد هستهٔ CPU خودکار خوانده می‌شود؛ RAM و دیسک و GPU را خودت وارد کن (از داخل دارت قابل اندازه‌گیری مطمئن نیستند).'
+      : 'This device\'s specs for routing heavy steps. CPU cores are read automatically; enter RAM, disk and GPU yourself (they cannot be measured reliably from Dart).';
+  String get dRamLabel => fa ? 'RAM (مگابایت)' : 'RAM (MB)';
+  String get dDiskLabel => fa ? 'دیسک آزاد (مگابایت)' : 'Free disk (MB)';
+  String get dHasGpu => fa ? 'این دستگاه GPU دارد' : 'This device has a GPU';
+  String get dSpecsSaved => fa ? 'مشخصات دستگاه ذخیره شد.' : 'Device specs saved.';
+  String get dSaveSpecs => fa ? 'ذخیرهٔ مشخصات' : 'Save specs';
+  String get dOverflowServerTitle => fa
+      ? 'سرور سرریز (اجرای ابزارهای این دستگاه برای جفت‌شده‌ها)'
+      : 'Overflow server (run this device\'s tools for paired devices)';
+  String get dOverflowServerSub => fa
+      ? 'پورت ۴۷۸۰۱ — مقصد همیشه دوباره اعتبارسنجی می‌کند'
+      : 'Port 47801 — the destination always re-validates';
+  String get dRemoteSensitiveTitle =>
+      fa ? 'اجازهٔ اجرای راه‌دور ابزارهای حساس' : 'Allow remote execution of sensitive tools';
+  String get dRemoteSensitiveSub => fa
+      ? 'پیش‌فرض خاموش است؛ با تغییرش سرور سرریز را خاموش و روشن کن تا اعمال شود'
+      : 'Off by default; after changing it, toggle the overflow server off and on to apply';
+  String dTrashLine(int n) => fa
+      ? 'سطل زبالهٔ سینک: $n مورد حذف‌شده (۳۰ روز نگه داشته می‌شود).'
+      : 'Sync trash: $n deleted item(s) (kept for 30 days).';
+
   String get trainArchHelp => fa
       ? 'پنهان = اندازهٔ مغز (بزرگ‌تر یعنی باهوش‌تر ولی کندتر) — بافت = چند کلمهٔ قبلی رو یادش می‌مونه — دوره = چند بار کل مثال‌ها رو از اول تا آخر می‌خونه. برای شروع همون پیش‌فرض‌ها (۳۲، ۳، ۳۰) خوبه، دست نزن.'
       : 'Hidden = brain size (bigger means smarter but slower) — Context = how many previous words it remembers — Epochs = how many times it re-reads all the examples. The defaults (32, 3, 30) are a good start — leave them.';

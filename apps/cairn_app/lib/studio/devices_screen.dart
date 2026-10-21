@@ -6,6 +6,7 @@ import 'package:cairn_sync/cairn_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'device_identity.dart';
 import 'project_store.dart';
@@ -167,6 +168,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
   }
 
   Future<void> _inspectOffer() async {
+    final s = S.of(context);
     try {
       final offer = PairingOffer.decode(_pasteController.text.trim());
       final session = await PairingSession.fromOffer(
@@ -177,11 +179,12 @@ class _DevicesScreenState extends State<DevicesScreen> {
         _pendingSession = session;
       });
     } on FormatException catch (e) {
-      _showStatus('پیشنهاد نامعتبر است: ${e.message}');
+      _showStatus(s.dInvalidOffer(e.message));
     }
   }
 
   Future<void> _confirmPairing() async {
+    final s = S.of(context);
     final session = _pendingSession;
     if (session == null) return;
     await PairedDevicesStore(widget.baseDir).add(session.confirm());
@@ -192,16 +195,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
       _pendingSession = null;
       _pasteController.clear();
     });
-    _showStatus('دستگاه جفت شد.');
+    _showStatus(s.dPaired);
   }
 
   Future<void> _syncNow(PairedDevice peer) async {
+    final s = S.of(context);
     final host = _hostControllers[peer.identity.deviceId]?.text.trim() ?? '';
     if (host.isEmpty) {
-      _showStatus('اول نشانی (IP) دستگاه را وارد کن.');
+      _showStatus(s.dEnterHostFirst);
       return;
     }
-    _showStatus('در حال سینک…');
+    _showStatus(s.dSyncing);
     try {
       final report = await SyncRunner(
         projects: widget.projects,
@@ -210,18 +214,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
         identity: _identity!,
       ).syncPeer(peer, host);
       await _reloadTrash();
-      _showStatus(
-        'سینک انجام شد — پروژه: ${report.projectsApplied}، '
-        'مهارت: ${report.skillsApplied}، '
-        'تعارض تازه: ${report.conflictsCreated}، '
-        'حذف‌شده: ${report.deleted}',
-      );
+      _showStatus(s.dSyncDone(report.projectsApplied, report.skillsApplied, report.conflictsCreated, report.deleted));
     } catch (e) {
-      _showStatus('سینک ناموفق بود: $e');
+      _showStatus(s.dSyncFailed('$e'));
     }
   }
 
   Future<void> _toggleServer(bool on) async {
+    final s = S.of(context);
     if (on) {
       final server = SyncServer();
       try {
@@ -231,11 +231,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           loadRecords: () => _coordinator().buildRecords(),
           onSync: (result) async {
             final report = await _coordinator().applyResult(result);
-            _showStatus(
-              'سینک ورودی انجام شد — پروژه: '
-              '${report.projectsApplied}، تعارض: '
-              '${report.conflictsCreated}، حذف: ${report.deleted}',
-            );
+            _showStatus(s.dIncomingSync(report.projectsApplied, report.conflictsCreated, report.deleted));
             await _reloadTrash();
           },
         );
@@ -244,7 +240,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           _serverOn = true;
         });
       } catch (e) {
-        _showStatus('سرور سینک شروع نشد: $e');
+        _showStatus(s.dSyncServerFailed('$e'));
       }
     } else {
       await _server?.close();
@@ -256,6 +252,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
   }
 
   Future<void> _toggleOverflow(bool on) async {
+    final s = S.of(context);
     if (!on) {
       await _overflowServer?.close();
       _overflowServer = null;
@@ -299,21 +296,22 @@ class _DevicesScreenState extends State<DevicesScreen> {
       setState(() {
         _overflowOn = true;
       });
-      _showStatus('سرور سرریز روشن شد (پورت ۴۷۸۰۱).');
+      _showStatus(s.dOverflowServerOn);
     } catch (e) {
-      _showStatus('سرور سرریز شروع نشد: $e');
+      _showStatus(s.dOverflowServerFailed('$e'));
     }
   }
 
   /// Fetches a paired peer's capabilities over the overflow protocol
   /// and shows what the router would decide for two sample heavy steps.
   Future<void> _showPeerCapabilities(PairedDevice peer) async {
+    final s = S.of(context);
     final host = _hostControllers[peer.identity.deviceId]?.text.trim() ?? '';
     if (host.isEmpty) {
-      _showStatus('اول نشانی دستگاه را وارد کن.');
+      _showStatus(s.dEnterHostFirst);
       return;
     }
-    _showStatus('در حال گرفتن توانمندی‌ها…');
+    _showStatus(s.dFetchingCaps);
     try {
       final client = await connectOverflow(
         host: host,
@@ -324,7 +322,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
       final caps = await client.fetchCapabilities();
       await client.close();
       if (caps == null) {
-        _showStatus('دستگاه مقابل توانمندی منتشر نمی‌کند.');
+        _showStatus(s.dNoCaps);
         return;
       }
       const balancer = LoadBalancer();
@@ -342,25 +340,18 @@ class _DevicesScreenState extends State<DevicesScreen> {
         candidates: candidates,
       );
       String verdict(RouteDecision d) => d.isBlocked
-          ? 'مسدود: ${d.unmet.join('؛ ')}'
-          : (d.isLocal
-              ? 'روی همین دستگاه اجرا می‌شود'
-              : 'روی دستگاه مقابل اجرا می‌شود (تقسیم بار)');
-      _showStatus(
-        'توانمندی‌های ${peer.identity.displayName}: '
-        '${caps.cpuCores} هسته، ${caps.ramMb}MB RAM، '
-        'GPU: ${caps.hasGpu ? 'دارد' : 'ندارد'} — '
-        'مرحلهٔ سنگین RAM: ${verdict(heavyRam)}؛ '
-        'مرحلهٔ GPU: ${verdict(gpuStep)}',
-      );
+          ? s.dBlocked(d.unmet.join('؛ '))
+          : (d.isLocal ? s.dRunsHere : s.dRunsThere);
+      _showStatus(s.dCapsLine(peer.identity.displayName, caps.cpuCores, caps.ramMb, caps.hasGpu ? s.dHas : s.dHasNot, verdict(heavyRam), verdict(gpuStep)));
     } catch (e) {
-      _showStatus('گرفتن توانمندی‌ها ناموفق بود: $e');
+      _showStatus(s.dCapsFailed('$e'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     final identity = _identity;
     if (identity == null) {
       return const Center(child: CircularProgressIndicator());
@@ -370,15 +361,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
       physics: widget.embedded ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(CairnSpacing.lg),
       children: [
-        Text('این دستگاه', style: theme.textTheme.titleMedium),
+        Text(s.dThisDevice, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.sm),
-        SelectableText('شناسه: ${identity.deviceId}'),
+        SelectableText(s.dDeviceId(identity.deviceId)),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'نام نمایشی'),
+                decoration: InputDecoration(labelText: s.dDisplayName),
               ),
             ),
             const SizedBox(width: CairnSpacing.sm),
@@ -390,18 +381,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   _displayName = _nameController.text.trim();
                 });
               },
-              child: const Text('ذخیره'),
+              child: Text(s.dSave),
             ),
           ],
         ),
         const Divider(height: CairnSpacing.xxl),
-        Text('جفت‌سازی دستگاه تازه', style: theme.textTheme.titleMedium),
+        Text(s.dPairNew, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.xs),
-        const Text(
-          'در یک دستگاه «ساخت پیشنهاد» را بزن و متنش را اینجا '
-          'بچسبان؛ در دستگاه دیگر هم همین کار را برعکس انجام بده. '
-          'کد ۶ رقمی باید در هر دو دستگاه یکسان باشد.',
-        ),
+        Text(s.dPairHelp),
         const SizedBox(height: CairnSpacing.sm),
         Wrap(
           spacing: CairnSpacing.sm,
@@ -409,14 +396,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
             OutlinedButton.icon(
               onPressed: _makeOffer,
               icon: const Icon(Icons.qr_code_2_outlined),
-              label: const Text('ساخت پیشنهاد جفت‌سازی'),
+              label: Text(s.dMakeOffer),
             ),
             if (_offerText != null)
               OutlinedButton.icon(
                 onPressed: () =>
                     Clipboard.setData(ClipboardData(text: _offerText!)),
                 icon: const Icon(Icons.copy_outlined),
-                label: const Text('کپی پیشنهاد'),
+                label: Text(s.dCopyOffer),
               ),
           ],
         ),
@@ -428,31 +415,29 @@ class _DevicesScreenState extends State<DevicesScreen> {
         TextField(
           controller: _pasteController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'پیشنهاد دستگاه دیگر را اینجا بچسبان',
-          ),
+          decoration: InputDecoration(labelText: s.dPasteOffer),
         ),
         const SizedBox(height: CairnSpacing.sm),
         OutlinedButton(
           onPressed: _inspectOffer,
-          child: const Text('بررسی پیشنهاد'),
+          child: Text(s.dInspectOffer),
         ),
         if (_pendingSession != null) ...[
           const SizedBox(height: CairnSpacing.md),
           Text(
-            'کد تأیید (باید با دستگاه دیگر یکسان باشد):',
+            s.dSasLabel,
             style: theme.textTheme.bodyMedium,
           ),
           Text(_pendingSession!.sas, style: theme.textTheme.headlineMedium),
           FilledButton(
             onPressed: _confirmPairing,
-            child: const Text('کدها یکسان‌اند — جفت کن'),
+            child: Text(s.dPairConfirm),
           ),
         ],
         const Divider(height: CairnSpacing.xxl),
-        Text('دستگاه‌های جفت‌شده', style: theme.textTheme.titleMedium),
+        Text(s.dPairedDevices, style: theme.textTheme.titleMedium),
         if (_paired.isEmpty)
-          const Text('هنوز دستگاهی جفت نشده است.')
+          Text(s.dNoPairedYet)
         else
           for (final peer in _paired)
             Card(
@@ -482,26 +467,24 @@ class _DevicesScreenState extends State<DevicesScreen> {
                                     : peer.endpoints.first,
                               ),
                             ),
-                            decoration: const InputDecoration(
-                              labelText: 'نشانی IP / Tailscale',
-                            ),
+                            decoration: InputDecoration(labelText: s.dHostLabel),
                           ),
                         ),
                         const SizedBox(width: CairnSpacing.sm),
                         FilledButton.icon(
                           onPressed: () => _syncNow(peer),
                           icon: const Icon(Icons.sync),
-                          label: const Text('سینک کن'),
+                          label: Text(s.dSyncNow),
                         ),
                         const SizedBox(width: CairnSpacing.sm),
                         OutlinedButton.icon(
                           onPressed: () => _showPeerCapabilities(peer),
                           icon: const Icon(Icons.speed_outlined),
-                          label: const Text('توانمندی‌ها'),
+                          label: Text(s.dCapabilities),
                         ),
                         IconButton(
                           icon: const Icon(Icons.link_off),
-                          tooltip: 'لغو جفت‌شدن',
+                          tooltip: s.dUnpair,
                           onPressed: () async {
                             await PairedDevicesStore(widget.baseDir)
                                 .remove(peer.identity.deviceId);
@@ -523,19 +506,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
             ),
         const Divider(height: CairnSpacing.xxl),
         SwitchListTile(
-          title: const Text('سرور سینک (پذیرش سینک از دستگاه جفت‌شده)'),
-          subtitle: const Text('پورت ۴۷۸۰۰ — فقط دستگاه‌های جفت‌شده'),
+          title: Text(s.dSyncServerTitle),
+          subtitle: Text(s.dSyncServerSub),
           value: _serverOn,
           onChanged: _toggleServer,
         ),
         const Divider(height: CairnSpacing.xxl),
-        Text('سرریز محاسباتی', style: theme.textTheme.titleMedium),
+        Text(s.dOverflowTitle, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.xs),
-        const Text(
-          'مشخصات این دستگاه برای مسیریابی مراحل سنگین. '
-          'تعداد هستهٔ CPU خودکار خوانده می‌شود؛ RAM و دیسک و GPU را '
-          'خودت وارد کن (از داخل دارت قابل اندازه‌گیری مطمئن نیستند).',
-        ),
+        Text(s.dSpecsHelp),
         const SizedBox(height: CairnSpacing.sm),
         Row(
           children: [
@@ -543,7 +522,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
               child: TextField(
                 controller: _ramController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'RAM (مگابایت)'),
+                decoration: InputDecoration(labelText: s.dRamLabel),
               ),
             ),
             const SizedBox(width: CairnSpacing.sm),
@@ -551,15 +530,13 @@ class _DevicesScreenState extends State<DevicesScreen> {
               child: TextField(
                 controller: _diskController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'دیسک آزاد (مگابایت)',
-                ),
+                decoration: InputDecoration(labelText: s.dDiskLabel),
               ),
             ),
           ],
         ),
         SwitchListTile(
-          title: const Text('این دستگاه GPU دارد'),
+          title: Text(s.dHasGpu),
           value: _hasGpu,
           onChanged: (v) {
             setState(() {
@@ -574,28 +551,19 @@ class _DevicesScreenState extends State<DevicesScreen> {
               freeDiskMb: int.tryParse(_diskController.text) ?? 10000,
               hasGpu: _hasGpu,
             );
-            _showStatus('مشخصات دستگاه ذخیره شد.');
+            _showStatus(s.dSpecsSaved);
           },
-          child: const Text('ذخیرهٔ مشخصات'),
+          child: Text(s.dSaveSpecs),
         ),
         SwitchListTile(
-          title: const Text(
-            'سرور سرریز (اجرای ابزارهای این دستگاه '
-            'برای جفت‌شده‌ها)',
-          ),
-          subtitle: const Text(
-            'پورت ۴۷۸۰۱ — مقصد همیشه دوباره '
-            'اعتبارسنجی می‌کند',
-          ),
+          title: Text(s.dOverflowServerTitle),
+          subtitle: Text(s.dOverflowServerSub),
           value: _overflowOn,
           onChanged: _toggleOverflow,
         ),
         SwitchListTile(
-          title: const Text('اجازهٔ اجرای راه‌دور ابزارهای حساس'),
-          subtitle: const Text(
-            'پیش‌فرض خاموش است؛ با تغییرش سرور سرریز '
-            'را خاموش و روشن کن تا اعمال شود',
-          ),
+          title: Text(s.dRemoteSensitiveTitle),
+          subtitle: Text(s.dRemoteSensitiveSub),
           value: _overflowSensitive,
           onChanged: (v) {
             setState(() {
@@ -605,8 +573,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
         if (_trashCount > 0)
           Text(
-            'سطل زبالهٔ سینک: $_trashCount مورد حذف‌شده (۳۰ روز نگه '
-            'داشته می‌شود).',
+            s.dTrashLine(_trashCount),
           ),
         if (_status.isNotEmpty) ...[
           const SizedBox(height: CairnSpacing.md),
