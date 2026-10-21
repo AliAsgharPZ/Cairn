@@ -87,7 +87,14 @@ Last updated: 2026-10-21
   symlink escapes), shell.run (argv-only, timeout, truncated output),
   http.get (size-capped, network-flagged). **16 tests passed**; wired
   into the app registry. Totals across pure-Dart packages: **63 tests**.
-- ⬜ Windows Tool Host process (JSON-RPC over Named Pipe) — next.
+- 🔵 Windows Tool Host: protocol + client + server implemented
+  (`packages/cairn_toolhost`): length-prefixed JSON-RPC, `host.ping` /
+  `host.capabilities` / `tool.invoke`; remote tools plug into the app's
+  ToolRegistry as ordinary Tools, so policy/approvals apply unchanged.
+  Executable in `tool_host/`. **6 tests passed**, including a real
+  spawned-process stdio end-to-end test. Remaining: Named Pipe transport
+  (Windows production) + app-side wiring to prefer the host on Windows —
+  verifiable only with the Windows build.
 - Owner reference flows: `docs/flowcharts.md` (provided 2026-10-21).
   Flow 1 = runtime acceptance picture (voice input captured there as a
   requirement, not yet scheduled). Flow 2 = the M9 training pathway.
