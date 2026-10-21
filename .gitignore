@@ -30,3 +30,7 @@ dist/
 
 # Local build outputs and delivered binaries
 builds/
+
+# Signing material must never enter the repo
+*.jks
+*.keystore

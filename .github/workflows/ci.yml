@@ -65,8 +65,22 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Decode release keystore from secrets (skipped when unset)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/cairn-release.jks"
+            echo "KEYSTORE_PATH=$RUNNER_TEMP/cairn-release.jks" >> "$GITHUB_ENV"
+          else
+            echo "No signing secret configured; the release APK will be debug-signed."
+          fi
       - name: Build release APKs (split per ABI)
         working-directory: apps/cairn_app
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi
       - name: Upload arm64 release APK artifact
         uses: actions/upload-artifact@v4
