@@ -15,7 +15,10 @@ import 'package:flutter_test/flutter_test.dart';
 // alternates duration pumps with short real delays so both the fake
 // animation clock and real IO make progress.
 Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 30; i++) {
+  // 60 rounds (up from 30): the shell's startup work grew with M6–M9
+  // (skills/providers reloads) and CI run #27 showed the shorter
+  // settle starving the full-app tests again.
+  for (var i = 0; i < 60; i++) {
     await tester.pump(const Duration(milliseconds: 50));
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }

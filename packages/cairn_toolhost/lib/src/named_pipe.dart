@@ -74,7 +74,7 @@ Future<int> _openHandle({required bool server, required String name}) async {
 void _openIsolate(({bool server, String name, SendPort reply}) args) {
   final path = _pipePath(args.name).toNativeUtf16();
   try {
-    final int handle;
+    int handle = _invalidHandleValue;
     if (args.server) {
       handle = CreateNamedPipe(
         path,
@@ -90,24 +90,51 @@ void _openIsolate(({bool server, String name, SendPort reply}) args) {
         args.reply.send('CreateNamedPipe error ${GetLastError()}');
         return;
       }
-      if (ConnectNamedPipe(handle, nullptr) == 0 &&
-          GetLastError() != 535 /* ERROR_PIPE_CONNECTED */) {
-        args.reply.send('ConnectNamedPipe error ${GetLastError()}');
-        CloseHandle(handle);
-        return;
+      if (ConnectNamedPipe(handle, nullptr) == 0) {
+        // In blocking (PIPE_WAIT) mode a 0 return means the client
+        // raced us (ERROR_PIPE_CONNECTED, 535 — the pipe IS connected
+        // and usable) or the handle is broken. Reading GetLastError()
+        // through the FFI boundary proved unreliable here (CI on real
+        // Windows returned 0 for a genuine 535, which a previous
+        // version wrongly treated as fatal), so probe the connection
+        // state directly instead: PeekNamedPipe succeeds on a
+        // connected pipe even when no data is waiting.
+        final probe =
+            PeekNamedPipe(handle, nullptr, 0, nullptr, nullptr, nullptr);
+        if (probe == 0) {
+          args.reply.send(
+              'ConnectNamedPipe failed and the pipe is not connected');
+          CloseHandle(handle);
+          return;
+        }
       }
     } else {
-      handle = CreateFile(
-        path,
-        _genericRead | _genericWrite,
-        0,
-        nullptr,
-        _openExisting,
-        0,
-        0,
-      );
+      // The server may not have created the instance yet (host still
+      // starting): retry briefly on FILE_NOT_FOUND / PIPE_BUSY.
+      var lastError = 0;
+      for (var attempt = 0; attempt < 50; attempt++) {
+        final h = CreateFile(
+          path,
+          _genericRead | _genericWrite,
+          0,
+          nullptr,
+          _openExisting,
+          0,
+          0,
+        );
+        if (h != _invalidHandleValue) {
+          handle = h;
+          break;
+        }
+        lastError = GetLastError();
+        if (lastError != 2 /* ERROR_FILE_NOT_FOUND */ &&
+            lastError != 231 /* ERROR_PIPE_BUSY */) {
+          break;
+        }
+        sleep(const Duration(milliseconds: 100));
+      }
       if (handle == _invalidHandleValue) {
-        args.reply.send('CreateFile error ${GetLastError()}');
+        args.reply.send('CreateFile error $lastError');
         return;
       }
     }
