@@ -1,0 +1,20 @@
+name: cairn_sync
+description: >-
+  Cairn device identity, pairing and sync transport: Ed25519 device
+  identities, QR pairing offers with a short authentication string (SAS),
+  and the record-exchange session that carries cairn_core sync records
+  between paired devices (LAN / Tailscale).
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  cairn_core:
+    path: ../cairn_core
+  cryptography: ^2.7.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

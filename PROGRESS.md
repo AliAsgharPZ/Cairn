@@ -135,9 +135,17 @@ Last updated: 2026-10-21
   settings = per-key LWW by HLC; tombstones delete only when dominating
   (a concurrent edit resurrects). **11 sync tests; core now 41/41.**
   Pure-Dart total: **91 tests**.
-- ⬜ Device identity + pairing (Ed25519, QR/SAS, mutual TLS) and the
-  transport (LAN/Tailscale) that carries these records; app-side
-  record production from ProjectStore/SkillStore and the Devices UI.
+- 🔵 Device identity + pairing (`packages/cairn_sync`): Ed25519 key
+  pairs; device id = public-key fingerprint (stable across seed
+  restores; the seed is the only secret and belongs in the platform
+  secure store). Pairing offers (QR payload JSON) are validated — an
+  offer whose claimed id doesn't derive from its key is refused — and
+  both sides compute the same 6-digit SAS from both keys + a session
+  nonce for the users to compare. **6 tests passed.**
+- ⬜ The record-exchange session (mutually authenticated, framed like
+  the Tool Host protocol) + transport (LAN socket / Tailscale) that
+  carries the records; app-side record production from
+  ProjectStore/SkillStore and the Devices UI.
 
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜
