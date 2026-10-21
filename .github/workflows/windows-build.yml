@@ -1,0 +1,29 @@
+# Builds the Cairn Windows binary on a real Windows runner.
+# The Linux build environment cannot compile Windows Flutter binaries;
+# this workflow (or tools/build_windows.ps1 on the owner's PC) produces them.
+name: windows-build
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+      - name: Test
+        working-directory: apps/cairn_app
+        run: flutter test
+      - name: Build Windows release
+        working-directory: apps/cairn_app
+        run: flutter build windows --release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-windows-release
+          path: apps/cairn_app/build/windows/x64/runner/Release/

@@ -1,0 +1,44 @@
+# Cairn — Progress (kept honest; updated every milestone)
+
+Status legend: ✅ Implemented & tested · 🟡 Implemented, not fully tested ·
+🔵 In progress · ⬜ Not started · 🚧 Blocked (with reason)
+
+Last updated: 2026-10-21
+
+## M0 — Toolchain, repo skeleton, design & font assets 🔵
+
+- Toolchain (installing on the build VM, all under `$HOME`):
+  - JDK: Temurin OpenJDK 17.0.20.1 ✅ verified (`java -version`)
+  - Flutter: stable 3.47.7 (downloading at time of writing)
+  - Android SDK: command-line tools + platform 35 + build-tools 35.0.0 (pending Flutter download)
+  - `flutter doctor` verdict: pending
+- Repo skeleton created (apps/, packages/, tool_host/, relay/, docs/, tools/, tests/). 🔵
+- Oracle: `npx getdesign@latest add oracle` executed in repo root →
+  `DESIGN.md` (42,525 bytes) installed ✅. Tokens read and confirmed:
+  primary charcoal `#312d2a`, brand red `#c74634` (wordmark only), warm canvas
+  ladder `#ffffff/#fbf9f8/#f5f4f2/#f1efed`, link `#006b8f`, focus `#227e9e`,
+  error `#d63b25`. Token mapping to Flutter theme lands in M2.
+- Arad font: cloned from the verified repo (MohamadDarvishi/Arad, OFL 1.1) and
+  bundled (variable font + core statics + Farsi-digits variable + OFL.txt +
+  AUTHORS.txt) under `apps/cairn_app/assets/fonts/arad/` ✅.
+  SHA-256 of `AradVF.ttf`: `cd45c0bbe78ec6bd45b6f90d294feed37e08b1038c75a30d7388a51bc22bd42e`.
+- CI workflows: ⬜ (this milestone)
+- Empty-app debug APK smoke build: ⬜ (this milestone, after doctor is green)
+
+## M1 — Core contracts ⬜
+## M2 — Oracle theme + studio shells + Arad typography gate ⬜
+## M3 — Model layer + agent editor + language pipeline ⬜
+## M4 — Runtime (orchestrator/state machine/budgets) + test console ⬜
+## M5 — Tools v1 + Windows Tool Host ⬜
+## M6 — Skills, policy/approvals, project versioning & export ⬜
+## M7 — Pairing + two-way sync + conflict resolution ⬜
+## M8 — Compute overflow + optional self-hosted relay ⬜
+## M9 — Fine-tune pathway + security hardening ⬜
+## M10 — Docs, packaging, verified ZIP delivery ⬜
+
+## Build status (reported separately, per delivery rules)
+
+- Android APK: not built yet.
+- Windows binary: cannot be compiled in this Linux environment (by design of
+  the approved architecture it is produced by the GitHub Actions
+  `windows-latest` workflow / `tools/build_windows.ps1`); not built yet.

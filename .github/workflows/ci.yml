@@ -1,0 +1,22 @@
+# Cairn maintainer CI (Linux): analyze + test the shared core and the app.
+name: ci
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+jobs:
+  dart-and-flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Core package tests
+        working-directory: packages/cairn_core
+        run: |
+          if [ -f pubspec.yaml ]; then dart analyze && dart test; fi
+      - name: App analyze + tests
+        working-directory: apps/cairn_app
+        run: |
+          if [ -f pubspec.yaml ]; then flutter analyze && flutter test; fi

@@ -1,0 +1,29 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android / Windows build outputs
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/local.properties
+**/build/
+*.apk
+*.aab
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Cairn local-only
+*.keystore
+key.properties
+.env
+dist/
