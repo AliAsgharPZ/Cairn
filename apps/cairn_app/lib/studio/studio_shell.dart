@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
+import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/cairn_theme.dart';
@@ -13,6 +16,7 @@ import 'provider_settings.dart';
 import 'settings_screen.dart';
 import 'skill_store.dart';
 import 'test_console_screen.dart';
+import 'training_screen.dart';
 
 /// The studio shell: one identical structure on phone and desktop —
 /// a navigation bar on compact widths, a navigation rail on wide ones
@@ -52,6 +56,7 @@ const _destinations = [
   _Destination('ویرایشگر ایجنت', Icons.smart_toy_outlined),
   _Destination('کنسول تست', Icons.terminal_outlined),
   _Destination('دستگاه‌ها و سینک', Icons.devices_outlined),
+  _Destination('آموزش مدل', Icons.school_outlined),
   _Destination('تنظیمات', Icons.settings_outlined),
 ];
 
@@ -115,8 +120,9 @@ class _StudioShellState extends State<StudioShell> {
           registry: widget.registry,
           providerConfigs: _providerConfigs,
           keyStore: widget.keyStore,
-          onOpenSettings: () => setState(() => _index = 4),
+          onOpenSettings: () => setState(() => _index = 5),
           skillRegistry: SkillRegistry(_skills),
+          modelRegistry: _modelRegistry,
         );
       case 3:
         return DevicesScreen(
@@ -126,14 +132,27 @@ class _StudioShellState extends State<StudioShell> {
           seedStore: widget.seedStore,
           registry: widget.registry,
         );
+      case 4:
+        return TrainingScreen(
+          baseDir: widget.store.baseDir,
+          registry: _modelRegistry,
+          settingsStore: widget.settingsStore,
+          onProvidersChanged: _reloadProviders,
+        );
       default:
         return SettingsScreen(
           settingsStore: widget.settingsStore,
           keyStore: widget.keyStore,
           onChanged: _reloadProviders,
+          modelRegistry: _modelRegistry,
         );
     }
   }
+
+  /// The shared registry of locally trained models (M9), rooted at
+  /// `<cairnDir>/models`.
+  ModelRegistryStore get _modelRegistry =>
+      ModelRegistryStore(Directory('${widget.store.baseDir.path}/models'));
 
   @override
   Widget build(BuildContext context) {

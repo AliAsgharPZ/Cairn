@@ -68,6 +68,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  cairn_training:
+    dependency: "direct main"
+    description:
+      path: "../../packages/cairn_training"
+      relative: true
+    source: path
+    version: "0.1.0"
   characters:
     dependency: transitive
     description:

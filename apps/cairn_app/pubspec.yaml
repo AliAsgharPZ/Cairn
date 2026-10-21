@@ -17,6 +17,8 @@ dependencies:
     path: ../../packages/cairn_runtime
   cairn_tools:
     path: ../../packages/cairn_tools
+  cairn_training:
+    path: ../../packages/cairn_training
   cairn_sync:
     path: ../../packages/cairn_sync
   path_provider: ^2.1.5

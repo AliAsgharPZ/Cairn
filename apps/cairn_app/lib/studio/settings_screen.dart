@@ -1,5 +1,6 @@
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_models/cairn_models.dart';
+import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/tokens.dart';
@@ -15,11 +16,15 @@ class SettingsScreen extends StatefulWidget {
     required this.settingsStore,
     required this.keyStore,
     this.onChanged,
+    this.modelRegistry,
   });
 
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
   final VoidCallback? onChanged;
+
+  /// Registry of locally trained models (for 'local-trained' configs).
+  final ModelRegistryStore? modelRegistry;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -110,7 +115,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('در حال تست اتصال…')));
     try {
-      final provider = buildProvider(config, widget.keyStore);
+      final provider = buildProvider(config, widget.keyStore,
+          modelRegistry: widget.modelRegistry);
       final res = await provider
           .complete(
             ModelConfig(

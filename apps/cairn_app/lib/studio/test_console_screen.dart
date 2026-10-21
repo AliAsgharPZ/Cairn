@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
+import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/tokens.dart';
@@ -22,6 +23,7 @@ class TestConsoleScreen extends StatefulWidget {
     required this.keyStore,
     this.onOpenSettings,
     this.skillRegistry,
+    this.modelRegistry,
   });
 
   final AgentProject? project;
@@ -33,6 +35,10 @@ class TestConsoleScreen extends StatefulWidget {
   /// Installed skills, handed to the orchestrator so agents can use the
   /// skills they reference (unknown ids fail the run loudly).
   final SkillRegistry? skillRegistry;
+
+  /// Registry of locally trained models (for 'local-trained' provider
+  /// configs); null disables that adapter in this context.
+  final ModelRegistryStore? modelRegistry;
 
   @override
   State<TestConsoleScreen> createState() => _TestConsoleScreenState();
@@ -136,7 +142,8 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
     });
 
     final orchestrator = Orchestrator(
-      provider: buildProvider(config, widget.keyStore),
+      provider: buildProvider(config, widget.keyStore,
+          modelRegistry: widget.modelRegistry),
       registry: widget.registry,
       journal: journal,
       skillRegistry: widget.skillRegistry,

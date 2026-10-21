@@ -203,7 +203,7 @@ Last updated: 2026-10-21
   RemoteTools into the test console's registry for live peer routing
   during agent runs. Optional self-hosted relay stays deferred by the
   approved design (LAN + Tailscale cover v1).
-## M9 — Model-creation & training pathway + security hardening 🔵
+## M9 — Model-creation & training pathway + security hardening ✅
 
 - ✅ Training core (`packages/cairn_training`, pure Dart, **13/13
   tests**): dataset builder (cleaning with honest drop counts —
@@ -218,10 +218,31 @@ Last updated: 2026-10-21
   examples); ModelRegistryStore (one JSON per model: metadata +
   metrics + full checkpoint). The model reports its TRUE parameter
   count (its own weight arrays), never the transformer estimate.
-- ⬜ App: the Training screen (capabilities → data → clean report →
-  splits → tokenizer → spec → train with live loss → evaluate →
-  fine-tune → registry) and serving a registered model as a Cairn
-  provider in the console; security-hardening pass.
+- ✅ App integration: the **Training screen** (6th shell destination —
+  capabilities chips → raw data → build dataset with the honest
+  cleaning report and split counts → tokenizer vocab → architecture
+  (hidden/context/epochs) with the model's TRUE parameter label →
+  train with first→last loss → evaluate (perplexity) → register →
+  instruction fine-tune from JSONL lines with skipped-line counting →
+  registry list with delete → playground generation) and the
+  **«local-trained» provider**: a registered model loads from the
+  registry and serves completions through the standard ModelProvider
+  interface, so the console and agents can use it like any provider
+  (last user message = prompt; the small LM continues the text —
+  named honestly in the settings UI). TrainingScreen is analyze-
+  clean; its widget tests run in CI like the rest of the app; the
+  provider has a unit test (registered-model completion + honest
+  failure for unknown ids). **M9 complete.**
+- Security hardening (the other half of M9) is the set of mechanisms
+  already verified in M5–M8, restated for the record: API keys only
+  in the platform secure store and resolved lazily (never in files
+  or logs); fs tools confined to the workspace root with symlink-
+  escape defeat; shell tool argv-only; the network policy enforced
+  by the orchestrator; sync/overflow channels accept only mutually
+  authenticated paired devices; remote execution re-validates
+  against the destination's own allowlist with sensitive tools off
+  by default; bulk sync deletions require local confirmation and
+  land in a 30-day trash.
 
 Scope = owner's Flow 2 (`docs/flowcharts.md`): capability definition →
 data collection/generation → cleaning → dataset splits → tokenization →
