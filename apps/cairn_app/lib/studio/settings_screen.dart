@@ -1,0 +1,338 @@
+import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_models/cairn_models.dart';
+import 'package:flutter/material.dart';
+
+import '../ui/tokens.dart';
+import 'provider_factory.dart';
+import 'provider_settings.dart';
+
+/// Provider management: configure model providers (adapter, base URL,
+/// default model), store API keys in the platform secure store, and test
+/// the connection with a real minimal completion call.
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({
+    super.key,
+    required this.settingsStore,
+    required this.keyStore,
+    this.onChanged,
+  });
+
+  final ProviderSettingsStore settingsStore;
+  final ApiKeyStore keyStore;
+  final VoidCallback? onChanged;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  List<ProviderConfig> _configs = const [];
+  final Map<String, bool> _hasKey = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final configs = await widget.settingsStore.load();
+    final keyStatus = <String, bool>{};
+    for (final c in configs) {
+      keyStatus[c.providerId] = (await widget.keyStore.read(c.providerId)) != null;
+    }
+    if (mounted) {
+      setState(() {
+        _configs = configs;
+        _hasKey
+          ..clear()
+          ..addAll(keyStatus);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _edit(ProviderConfig? existing) async {
+    final providerId = existing?.providerId ??
+        knownProviders.keys.firstWhere(
+          (id) => !_configs.any((c) => c.providerId == id),
+          orElse: () => knownProviders.keys.first,
+        );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _ProviderDialog(
+        settingsStore: widget.settingsStore,
+        keyStore: widget.keyStore,
+        existing: existing,
+        initialProviderId: providerId,
+        hasKey: _hasKey[providerId] ?? false,
+      ),
+    );
+    if (saved == true) {
+      await _reload();
+      widget.onChanged?.call();
+    }
+  }
+
+  Future<void> _delete(ProviderConfig config) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف ارائه‌دهنده'),
+        content: Text(
+            'پیکربندی «${knownProviders[config.providerId] ?? config.providerId}» و کلیدش حذف شود؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('لغو'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.settingsStore.remove(config.providerId);
+    await widget.keyStore.delete(config.providerId);
+    await _reload();
+    widget.onChanged?.call();
+  }
+
+  Future<void> _testConnection(ProviderConfig config) async {
+    if (config.defaultModelId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('برای تست اتصال، اول «مدل پیش‌فرض» را پر کن')));
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('در حال تست اتصال…')));
+    try {
+      final provider = buildProvider(config, widget.keyStore);
+      final res = await provider
+          .complete(
+            ModelConfig(
+                providerId: config.providerId, modelId: config.defaultModelId),
+            const ModelRequest(messages: [
+              ChatMessage(ChatRole.user, 'Reply with exactly: OK'),
+            ], maxOutputTokens: 8),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'اتصال موفق بود. پاسخ مدل: ${res.text.trim().isEmpty ? '(خالی)' : res.text.trim()}')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('خطای اتصال: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(CairnSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('ارائه‌دهنده‌های مدل', style: theme.textTheme.headlineMedium),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: () => _edit(null),
+                icon: const Icon(Icons.add),
+                label: const Text('افزودن ارائه‌دهنده'),
+              ),
+            ],
+          ),
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: CairnSpacing.xs),
+            color: CairnColors.accentGold,
+          ),
+          const SizedBox(height: CairnSpacing.md),
+          Text(
+            'کلیدهای API در حافظهٔ امن سیستم‌عامل (Keystore / DPAPI) نگه‌داری می‌شوند؛ '
+            'هرگز داخل فایل پروژه یا تنظیمات ذخیره نمی‌شوند.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: CairnSpacing.xxl),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _configs.isEmpty
+                    ? const Center(
+                        child: Text(
+                            'هنوز ارائه‌دهنده‌ای پیکربندی نشده. برای اجرای ایجنت‌ها یکی اضافه کن (مثلاً Ollama محلی یا یک API).'),
+                      )
+                    : ListView.separated(
+                        itemCount: _configs.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: CairnSpacing.sm),
+                        itemBuilder: (context, i) {
+                          final c = _configs[i];
+                          final needsKey = c.providerId != 'ollama';
+                          return Card(
+                            child: ListTile(
+                              title: Text(
+                                  knownProviders[c.providerId] ?? c.providerId),
+                              subtitle: Text(
+                                [
+                                  if (c.baseUrl != null) c.baseUrl!,
+                                  if (c.defaultModelId.isNotEmpty)
+                                    'مدل پیش‌فرض: ${c.defaultModelId}',
+                                  if (needsKey)
+                                    (_hasKey[c.providerId] ?? false)
+                                        ? 'کلید API: ذخیره شده'
+                                        : 'کلید API: تنظیم نشده',
+                                ].join(' · '),
+                              ),
+                              trailing: Wrap(
+                                spacing: CairnSpacing.xs,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.wifi_tethering),
+                                    tooltip: 'تست اتصال',
+                                    onPressed: () => _testConnection(c),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined),
+                                    tooltip: 'ویرایش',
+                                    onPressed: () => _edit(c),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    tooltip: 'حذف',
+                                    onPressed: () => _delete(c),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderDialog extends StatefulWidget {
+  const _ProviderDialog({
+    required this.settingsStore,
+    required this.keyStore,
+    required this.existing,
+    required this.initialProviderId,
+    required this.hasKey,
+  });
+
+  final ProviderSettingsStore settingsStore;
+  final ApiKeyStore keyStore;
+  final ProviderConfig? existing;
+  final String initialProviderId;
+  final bool hasKey;
+
+  @override
+  State<_ProviderDialog> createState() => _ProviderDialogState();
+}
+
+class _ProviderDialogState extends State<_ProviderDialog> {
+  late String _providerId = widget.initialProviderId;
+  late final _baseUrl = TextEditingController(text: widget.existing?.baseUrl);
+  late final _modelId =
+      TextEditingController(text: widget.existing?.defaultModelId);
+  final _apiKey = TextEditingController();
+
+  @override
+  void dispose() {
+    _baseUrl.dispose();
+    _modelId.dispose();
+    _apiKey.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    await widget.settingsStore.upsert(ProviderConfig(
+      providerId: _providerId,
+      baseUrl: _baseUrl.text.trim().isEmpty ? null : _baseUrl.text.trim(),
+      defaultModelId: _modelId.text.trim(),
+    ));
+    if (_apiKey.text.isNotEmpty) {
+      await widget.keyStore.write(_providerId, _apiKey.text);
+    }
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNew = widget.existing == null;
+    return AlertDialog(
+      title: Text(isNew ? 'افزودن ارائه‌دهنده' : 'ویرایش ارائه‌دهنده'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _providerId,
+              decoration: const InputDecoration(labelText: 'نوع ارائه‌دهنده'),
+              items: [
+                for (final e in knownProviders.entries)
+                  DropdownMenuItem(value: e.key, child: Text(e.value)),
+              ],
+              onChanged: isNew
+                  ? (v) => setState(() => _providerId = v ?? _providerId)
+                  : null,
+            ),
+            const SizedBox(height: CairnSpacing.sm),
+            TextField(
+              controller: _baseUrl,
+              decoration: const InputDecoration(
+                labelText: 'آدرس پایه (Base URL) — اختیاری',
+                hintText: 'https://api.openai.com/v1',
+              ),
+            ),
+            const SizedBox(height: CairnSpacing.sm),
+            TextField(
+              controller: _modelId,
+              decoration: const InputDecoration(
+                labelText: 'مدل پیش‌فرض',
+                hintText: 'gpt-4o-mini / llama3.1 / …',
+              ),
+            ),
+            if (_providerId != 'ollama') ...[
+              const SizedBox(height: CairnSpacing.sm),
+              TextField(
+                controller: _apiKey,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: widget.hasKey
+                      ? 'کلید API (خالی = بدون تغییر)'
+                      : 'کلید API',
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('لغو'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('ذخیره'),
+        ),
+      ],
+    );
+  }
+}

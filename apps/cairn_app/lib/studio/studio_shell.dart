@@ -1,10 +1,15 @@
 import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/cairn_theme.dart';
 import '../ui/tokens.dart';
+import 'agent_editor_screen.dart';
 import 'project_store.dart';
 import 'projects_screen.dart';
+import 'provider_settings.dart';
+import 'settings_screen.dart';
+import 'test_console_screen.dart';
 
 /// The studio shell: one identical structure on phone and desktop —
 /// a navigation bar on compact widths, a navigation rail on wide ones
@@ -12,9 +17,18 @@ import 'projects_screen.dart';
 /// milestone; a destination that is not built yet says so plainly instead
 /// of showing fabricated functionality.
 class StudioShell extends StatefulWidget {
-  const StudioShell({super.key, required this.store});
+  const StudioShell({
+    super.key,
+    required this.store,
+    required this.registry,
+    required this.settingsStore,
+    required this.keyStore,
+  });
 
   final ProjectStore store;
+  final ToolRegistry registry;
+  final ProviderSettingsStore settingsStore;
+  final ApiKeyStore keyStore;
 
   @override
   State<StudioShell> createState() => _StudioShellState();
@@ -37,6 +51,18 @@ const _destinations = [
 class _StudioShellState extends State<StudioShell> {
   int _index = 0;
   AgentProject? _selectedProject;
+  List<ProviderConfig> _providerConfigs = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadProviders();
+  }
+
+  Future<void> _reloadProviders() async {
+    final configs = await widget.settingsStore.load();
+    if (mounted) setState(() => _providerConfigs = configs);
+  }
 
   void _openProject(AgentProject project) {
     setState(() {
@@ -51,20 +77,20 @@ class _StudioShellState extends State<StudioShell> {
         return ProjectsScreen(
             store: widget.store, onOpenProject: _openProject);
       case 1:
-        return _RoadmapPanel(
-          title: 'ویرایشگر ایجنت',
-          milestone: 'M3',
-          detail: _selectedProject == null
-              ? 'اول از بخش پروژه‌ها یک پروژه را باز کن.'
-              : 'پروژهٔ انتخاب‌شده: ${_selectedProject!.name} — '
-                  'ویرایشگر فرمی ایجنت در مرحلهٔ M3 روی همین صفحه می‌نشیند.',
+        return AgentEditorScreen(
+          store: widget.store,
+          project: _selectedProject,
+          registry: widget.registry,
+          providerConfigs: _providerConfigs,
+          onProjectChanged: () => setState(() {}),
         );
       case 2:
-        return const _RoadmapPanel(
-          title: 'کنسول تست',
-          milestone: 'M4',
-          detail: 'اجرای زندهٔ ایجنت و مشاهدهٔ پلن، فراخوانی ابزار و لاگ، '
-              'همراه موتور اجرا در مرحلهٔ M4 ساخته می‌شود.',
+        return TestConsoleScreen(
+          project: _selectedProject,
+          registry: widget.registry,
+          providerConfigs: _providerConfigs,
+          keyStore: widget.keyStore,
+          onOpenSettings: () => setState(() => _index = 4),
         );
       case 3:
         return const _RoadmapPanel(
@@ -74,11 +100,10 @@ class _StudioShellState extends State<StudioShell> {
               'در مرحلهٔ M7 ساخته می‌شود.',
         );
       default:
-        return const _RoadmapPanel(
-          title: 'تنظیمات',
-          milestone: 'M3',
-          detail: 'مدل‌ها، کلیدهای API و سیاست‌های اجرا در مرحلهٔ M3 '
-              'به این بخش می‌آیند.',
+        return SettingsScreen(
+          settingsStore: widget.settingsStore,
+          keyStore: widget.keyStore,
+          onChanged: _reloadProviders,
         );
     }
   }

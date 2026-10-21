@@ -1,0 +1,434 @@
+import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_runtime/cairn_runtime.dart';
+import 'package:flutter/material.dart';
+
+import '../ui/tokens.dart';
+import 'project_store.dart';
+import 'provider_factory.dart';
+import 'provider_settings.dart';
+
+/// The agent editor (approved v1 form editor): edits one [AgentBlueprint]
+/// inside the selected project — identity, system prompt, model, language
+/// pipeline, memory, approval policy and declared tools — and persists it
+/// through [ProjectStore]. Validation errors from the blueprint itself are
+/// shown, never swallowed.
+class AgentEditorScreen extends StatefulWidget {
+  const AgentEditorScreen({
+    super.key,
+    required this.store,
+    required this.project,
+    required this.registry,
+    required this.providerConfigs,
+    this.onProjectChanged,
+  });
+
+  final ProjectStore store;
+  final AgentProject? project;
+  final ToolRegistry registry;
+  final List<ProviderConfig> providerConfigs;
+  final VoidCallback? onProjectChanged;
+
+  @override
+  State<AgentEditorScreen> createState() => _AgentEditorScreenState();
+}
+
+class _AgentEditorScreenState extends State<AgentEditorScreen> {
+  final _name = TextEditingController();
+  final _description = TextEditingController();
+  final _systemPrompt = TextEditingController();
+  final _modelId = TextEditingController();
+  final _maxTokens = TextEditingController();
+
+  String? _editingId;
+  String _providerId = 'ollama';
+  double? _temperature;
+  ApprovalLevel _approval = ApprovalLevel.sensitiveOnly;
+  String _primaryLanguage = 'auto';
+  bool _translate = true;
+  bool _memoryEnabled = true;
+  bool _allowNetwork = true;
+  final Set<String> _toolIds = {};
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _systemPrompt.dispose();
+    _modelId.dispose();
+    _maxTokens.dispose();
+    super.dispose();
+  }
+
+  void _newAgent() {
+    setState(() {
+      _editingId = null;
+      _name.clear();
+      _description.clear();
+      _systemPrompt.clear();
+      _modelId.clear();
+      _maxTokens.clear();
+      _providerId = widget.providerConfigs.isNotEmpty
+          ? widget.providerConfigs.first.providerId
+          : 'ollama';
+      _temperature = null;
+      _approval = ApprovalLevel.sensitiveOnly;
+      _primaryLanguage = 'auto';
+      _translate = true;
+      _memoryEnabled = true;
+      _allowNetwork = true;
+      _toolIds.clear();
+    });
+  }
+
+  void _loadAgent(AgentBlueprint a) {
+    setState(() {
+      _editingId = a.id;
+      _name.text = a.name;
+      _description.text = a.description;
+      _systemPrompt.text = a.systemPrompt;
+      _modelId.text = a.model.modelId;
+      _maxTokens.text = a.model.maxOutputTokens?.toString() ?? '';
+      _providerId = a.model.providerId;
+      _temperature = a.model.temperature;
+      _approval = a.policy.approvalLevel;
+      _primaryLanguage = a.language.primaryLanguage;
+      _translate = a.language.translateWhenNeeded;
+      _memoryEnabled = a.memory.enabled;
+      _allowNetwork = a.policy.allowNetwork;
+      _toolIds
+        ..clear()
+        ..addAll(a.tools.map((t) => t.toolId));
+    });
+  }
+
+  AgentBlueprint _buildBlueprint() {
+    final maxTokens = int.tryParse(_maxTokens.text.trim());
+    return AgentBlueprint(
+      id: _editingId,
+      name: _name.text.trim(),
+      description: _description.text.trim(),
+      systemPrompt: _systemPrompt.text,
+      model: ModelConfig(
+        providerId: _providerId,
+        modelId: _modelId.text.trim(),
+        temperature: _temperature,
+        maxOutputTokens: maxTokens,
+      ),
+      language: LanguageConfig(
+        primaryLanguage: _primaryLanguage,
+        translateWhenNeeded: _translate,
+      ),
+      tools: [for (final id in _toolIds) ToolBinding(toolId: id)],
+      memory: MemoryConfig(enabled: _memoryEnabled),
+      policy: PolicyConfig(
+        approvalLevel: _approval,
+        allowNetwork: _allowNetwork,
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    final project = widget.project;
+    if (project == null) return;
+    final blueprint = _buildBlueprint();
+    final issues = blueprint.validate();
+    if (issues.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('ایجنت کامل نیست'),
+          content: Text(issues.join('\n')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('باشه'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    project.upsertAgent(blueprint);
+    try {
+      await widget.store.save(project);
+    } on FormatException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+    setState(() => _editingId = blueprint.id);
+    widget.onProjectChanged?.call();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ایجنت ذخیره شد')),
+      );
+    }
+  }
+
+  Future<void> _delete() async {
+    final project = widget.project;
+    if (project == null || _editingId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف ایجنت'),
+        content: Text('ایجنت «${_name.text}» از پروژه حذف شود؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('لغو'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    project.removeAgent(_editingId!);
+    await widget.store.save(project);
+    widget.onProjectChanged?.call();
+    _newAgent();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final project = widget.project;
+    if (project == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(CairnSpacing.xxl),
+          child: Text('اول از بخش «پروژه‌ها» یک پروژه را باز کن تا ایجنت‌هایش را اینجا ویرایش کنی.'),
+        ),
+      );
+    }
+    final theme = Theme.of(context);
+    final providerIds = <String>{
+      ...knownProviders.keys,
+      for (final c in widget.providerConfigs) c.providerId,
+    }.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              CairnSpacing.md, CairnSpacing.md, CairnSpacing.md, 0),
+          child: Wrap(
+            spacing: CairnSpacing.xs,
+            runSpacing: CairnSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('پروژه: ${project.name}', style: theme.textTheme.titleMedium),
+              const SizedBox(width: CairnSpacing.sm),
+              for (final agent in project.agents)
+                ChoiceChip(
+                  label: Text(agent.name),
+                  selected: _editingId == agent.id,
+                  onSelected: (_) => _loadAgent(agent),
+                ),
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 18),
+                label: const Text('ایجنت جدید'),
+                onPressed: _newAgent,
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: CairnSpacing.xxl),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(CairnSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _name,
+                  decoration: const InputDecoration(labelText: 'نام ایجنت'),
+                ),
+                const SizedBox(height: CairnSpacing.sm),
+                TextField(
+                  controller: _description,
+                  decoration: const InputDecoration(labelText: 'توضیح'),
+                ),
+                const SizedBox(height: CairnSpacing.sm),
+                TextField(
+                  controller: _systemPrompt,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                      labelText: 'پرامپت سیستم (System Prompt)'),
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                Text('مدل', style: theme.textTheme.titleMedium),
+                const SizedBox(height: CairnSpacing.xs),
+                DropdownButtonFormField<String>(
+                  initialValue: _providerId,
+                  decoration:
+                      const InputDecoration(labelText: 'ارائه‌دهنده (Provider)'),
+                  items: [
+                    for (final id in providerIds)
+                      DropdownMenuItem(
+                          value: id, child: Text(knownProviders[id] ?? id)),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() {
+                      _providerId = v;
+                      if (_modelId.text.isEmpty) {
+                        final cfg = widget.providerConfigs
+                            .where((c) => c.providerId == v)
+                            .firstOrNull;
+                        if (cfg != null && cfg.defaultModelId.isNotEmpty) {
+                          _modelId.text = cfg.defaultModelId;
+                        }
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: CairnSpacing.sm),
+                TextField(
+                  controller: _modelId,
+                  decoration:
+                      const InputDecoration(labelText: 'شناسهٔ مدل (Model ID)'),
+                ),
+                const SizedBox(height: CairnSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _maxTokens,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'سقف توکن خروجی (اختیاری)'),
+                      ),
+                    ),
+                    const SizedBox(width: CairnSpacing.md),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _temperature == null
+                                ? 'دما: پیش‌فرض مدل'
+                                : 'دما: ${_temperature!.toStringAsFixed(1)}',
+                            style: theme.textTheme.labelLarge,
+                          ),
+                          Slider(
+                            value: _temperature ?? 0.7,
+                            min: 0,
+                            max: 2,
+                            divisions: 20,
+                            onChanged: (v) =>
+                                setState(() => _temperature = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => _temperature = null),
+                      child: const Text('پیش‌فرض'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                Text('زبان و حافظه', style: theme.textTheme.titleMedium),
+                const SizedBox(height: CairnSpacing.xs),
+                DropdownButtonFormField<String>(
+                  initialValue: _primaryLanguage,
+                  decoration: const InputDecoration(labelText: 'زبان اصلی'),
+                  items: const [
+                    DropdownMenuItem(value: 'auto', child: Text('تشخیص خودکار')),
+                    DropdownMenuItem(value: 'fa', child: Text('فارسی')),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _primaryLanguage = v ?? 'auto'),
+                ),
+                SwitchListTile(
+                  title: const Text('ترجمهٔ خودکار هنگام نیاز'),
+                  value: _translate,
+                  onChanged: (v) => setState(() => _translate = v),
+                ),
+                SwitchListTile(
+                  title: const Text('حافظهٔ مکالمه فعال باشد'),
+                  value: _memoryEnabled,
+                  onChanged: (v) => setState(() => _memoryEnabled = v),
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                Text('سیاست اجرا', style: theme.textTheme.titleMedium),
+                const SizedBox(height: CairnSpacing.xs),
+                DropdownButtonFormField<ApprovalLevel>(
+                  initialValue: _approval,
+                  decoration: const InputDecoration(labelText: 'سطح تأیید'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: ApprovalLevel.sensitiveOnly,
+                      child: Text('فقط ابزارهای حساس بپرسد'),
+                    ),
+                    DropdownMenuItem(
+                      value: ApprovalLevel.all,
+                      child: Text('همهٔ فراخوانی‌ها بپرسد'),
+                    ),
+                    DropdownMenuItem(
+                      value: ApprovalLevel.none,
+                      child: Text('بدون پرسش اجرا کند'),
+                    ),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _approval = v ?? ApprovalLevel.sensitiveOnly),
+                ),
+                SwitchListTile(
+                  title: const Text('دسترسی شبکه مجاز باشد'),
+                  value: _allowNetwork,
+                  onChanged: (v) => setState(() => _allowNetwork = v),
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                Text('ابزارهای مجاز', style: theme.textTheme.titleMedium),
+                const SizedBox(height: CairnSpacing.xs),
+                for (final tool in widget.registry.all)
+                  CheckboxListTile(
+                    title: Text(tool.id),
+                    subtitle: Text(tool.description),
+                    secondary: tool.sensitive
+                        ? const Icon(Icons.warning_amber_outlined)
+                        : const Icon(Icons.check_circle_outline),
+                    value: _toolIds.contains(tool.id),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _toolIds.add(tool.id);
+                      } else {
+                        _toolIds.remove(tool.id);
+                      }
+                    }),
+                  ),
+                const SizedBox(height: CairnSpacing.xxl),
+                Row(
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _save,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('ذخیرهٔ ایجنت'),
+                    ),
+                    const SizedBox(width: CairnSpacing.sm),
+                    if (_editingId != null)
+                      OutlinedButton.icon(
+                        onPressed: _delete,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('حذف ایجنت'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: CairnSpacing.xxl),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

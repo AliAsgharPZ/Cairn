@@ -1,0 +1,21 @@
+name: cairn_tools
+description: >-
+  Cairn built-in tools: pure-Dart tools that run identically on every
+  platform (clock, calculator, text utilities, id generation). Platform
+  tools (filesystem, shell, HTTP) arrive with the Tool Host milestone and
+  register into the same registry.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  cairn_core:
+    path: ../cairn_core
+  cairn_runtime:
+    path: ../cairn_runtime
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
