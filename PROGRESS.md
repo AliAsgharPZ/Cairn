@@ -5,7 +5,7 @@ Status legend: ✅ Implemented & tested · 🟡 Implemented, not fully tested ·
 
 Last updated: 2026-10-21
 
-## M0 — Toolchain, repo skeleton, design & font assets 🔵
+## M0 — Toolchain, repo skeleton, design & font assets ✅
 
 - Toolchain (installed on the build VM, all under `$HOME`):
   - JDK: Temurin OpenJDK 17.0.20.1 ✅ verified (`java -version`)
@@ -30,7 +30,9 @@ Last updated: 2026-10-21
   SHA-256 of `AradVF.ttf`: `cd45c0bbe78ec6bd45b6f90d294feed37e08b1038c75a30d7388a51bc22bd42e`.
 - CI workflows: written (`.github/workflows/ci.yml`, `windows-build.yml`) ✅;
   git repo initialised, first commit `c319b81` ✅.
-- Empty-app debug APK smoke build: ⬜ (this milestone, after doctor is green)
+- Empty-app debug APK smoke build: 🚧 cannot run in this sandbox (network
+  gate blocks Gradle's loopback channel — see Build status); routed to the
+  CI `android-apk` job instead.
 
 ## M1 — Core contracts ✅
 
@@ -42,9 +44,36 @@ Last updated: 2026-10-21
 - **22 unit tests run and passed** (2026-10-21, `dart test`); `dart analyze`
   clean. App scaffold generated with `flutter create` (android+windows only),
   minSdk pinned to 26 (decision D4).
-## M2 — Oracle theme + studio shells + Arad typography gate ⬜
-## M3 — Model layer + agent editor + language pipeline ⬜
-## M4 — Runtime (orchestrator/state machine/budgets) + test console ⬜
+## M2 — Oracle theme + studio shells + Arad typography gate 🔵
+
+- Token layer (`lib/ui/tokens.dart`) + full `ThemeData` (light + dark
+  extension) built from DESIGN.md; Arad registered with explicit weights,
+  Inter variable font bundled (OFL) as Latin fallback; wordmark widget is
+  the only brand-red surface.
+- Studio shell (rail/bar responsive) + Projects screen with real
+  file persistence (`ProjectStore`, atomic JSON writes, corruption
+  surfaced). Widget + store tests written and analyze-clean; they execute
+  in CI (the local `flutter test` harness is sandbox-blocked, see Build
+  status). Editor screen wiring lands with M3/M4.
+
+## M3 — Model layer + agent editor + language pipeline ✅ (engine) / editor UI in M2 scope
+
+- `packages/cairn_models`: OpenAI-compatible, Anthropic and Ollama adapters
+  (real HTTP, keys resolved per call, never stored), FakeModelProvider for
+  tests, language pipeline (script detection, translate, normalize).
+- **14 tests run and passed** (2026-10-21) against in-process HTTP servers;
+  `dart analyze` clean.
+
+## M4 — Runtime (orchestrator/state machine/budgets) + test console 🔵
+
+- `packages/cairn_runtime`: Planner (strict JSON plan, validated against
+  blueprint + device tool registry) and Orchestrator (normalize → plan →
+  approval gate → step execution with budgets/retries/idempotency keys →
+  verification; every transition journaled; failure modes all fail loudly).
+- **10 tests run and passed** (2026-10-21): happy paths, plan/tool approval
+  denial, undeclared tool, budget exhaustion, verification rejection,
+  cancellation, malformed plan; `dart analyze` clean.
+- Test-console UI wiring: in progress.
 ## M5 — Tools v1 + Windows Tool Host ⬜
 ## M6 — Skills, policy/approvals, project versioning & export ⬜
 ## M7 — Pairing + two-way sync + conflict resolution ⬜
@@ -54,14 +83,18 @@ Last updated: 2026-10-21
 
 ## Build status (reported separately, per delivery rules)
 
-- Android APK: **blocked by the build sandbox, not by the code.** The whole
-  toolchain works (JDK/Flutter/Android SDK/Gradle 9.3.1 all verified, wrapper
-  cache seeded, daemon starts and listens), but the sandbox blocks
-  cross-process local TCP, which the Gradle client↔daemon channel requires
-  ("Could not dispatch a message to the daemon — Broken pipe"; a raw Java
-  socket test receives the sandbox's in-band notice that "Other TCP
-  connections is turned off"). Unblocks when the user enables other TCP
-  connections for the assistant in the Muse app settings.
+- Android APK: **cannot be built inside this sandbox** (verified 2026-10-21,
+  root cause fully diagnosed): the sandbox's network gate terminates
+  cross-process loopback TCP, which the Gradle client↔daemon channel
+  requires. Setting "Other TCP connections" to Ask and approving the
+  per-port prompts did NOT let the traffic through (repeat connections to
+  an approved host:port still reset; the test server never sees a byte).
+  The same gate blocks the `flutter test` harness (its VM-service
+  websocket), so the app's widget/store tests — written and analyze-clean —
+  execute in CI, not here. Pure-Dart package tests and `flutter analyze`
+  run fine locally. Build route: the `android-apk` job in
+  `.github/workflows/ci.yml` (needs the repo on GitHub), or any regular
+  machine with Flutter installed.
 - Windows binary: cannot be compiled in this Linux environment (by design of
   the approved architecture it is produced by the GitHub Actions
   `windows-latest` workflow / `tools/build_windows.ps1`); not built yet.

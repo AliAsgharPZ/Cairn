@@ -1,0 +1,21 @@
+name: cairn_runtime
+description: >-
+  Cairn agent runtime: the orchestrator that turns an instruction into a
+  structured plan and executes it through the task state machine — with
+  budgets, approval policy, retries and a journaled audit trail. Pure Dart;
+  the same engine runs on Android and Windows.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  cairn_core:
+    path: ../cairn_core
+  cairn_models:
+    path: ../cairn_models
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

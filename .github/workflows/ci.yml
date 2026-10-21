@@ -1,22 +1,55 @@
-# Cairn maintainer CI (Linux): analyze + test the shared core and the app.
+# Cairn CI (Linux): analyze + test every package and the app, and produce a
+# debug APK artifact. The APK job exists because the maintainer's local
+# sandbox cannot run Gradle (its cross-process loopback TCP is blocked by
+# policy — see PROGRESS.md); CI is the honest build route for binaries until
+# the project is built on a regular machine.
 name: ci
 on:
   push:
     branches: [ main ]
   pull_request:
 jobs:
-  dart-and-flutter:
+  dart-packages:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Core package tests
-        working-directory: packages/cairn_core
+      - name: Analyze + test pure-Dart packages
         run: |
-          if [ -f pubspec.yaml ]; then dart analyze && dart test; fi
-      - name: App analyze + tests
+          for pkg in cairn_core cairn_models cairn_runtime; do
+            echo "=== $pkg ==="
+            (cd packages/$pkg && dart analyze && dart test)
+          done
+
+  flutter-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: App analyze + widget/store tests
         working-directory: apps/cairn_app
-        run: |
-          if [ -f pubspec.yaml ]; then flutter analyze && flutter test; fi
+        run: flutter analyze && flutter test
+
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build debug APK
+        working-directory: apps/cairn_app
+        run: flutter build apk --debug
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-debug-apk
+          path: apps/cairn_app/build/app/outputs/flutter-apk/app-debug.apk

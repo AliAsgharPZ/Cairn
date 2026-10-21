@@ -1,0 +1,19 @@
+name: cairn_models
+description: >-
+  Cairn model layer: provider adapters (OpenAI-compatible, Anthropic, Ollama),
+  a deterministic fake provider for tests, and the language pipeline
+  (detect / translate / normalize). Pure Dart.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  cairn_core:
+    path: ../cairn_core
+  http: ^1.2.2
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
