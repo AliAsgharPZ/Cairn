@@ -4,3 +4,4 @@ library;
 
 export 'src/identity.dart';
 export 'src/pairing.dart';
+export 'src/session.dart';

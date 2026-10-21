@@ -1,10 +1,10 @@
-import 'ids.dart';
-
 /// Two-way sync core (M7): version vectors, hybrid logical clocks and the
 /// per-kind merge rules from the approved design (docs/decisions.md):
 ///
 /// - projects & skills: a dominating version wins; **concurrent** edits
-///   keep the local record and surface the remote one as a conflict copy
+///   resolve deterministically — the record with the greater HLC stays
+///   canonical and the other becomes a conflict copy with a
+///   deterministic id, so both devices converge to identical state
 ///   (a real 3-way merge additionally needs the common base; without one
 ///   the conflict copy is the decided fallback, never a silent overwrite).
 /// - journal events: append-only union (deduplicated by event id).
@@ -267,21 +267,28 @@ SyncMergeResult mergeSyncRecords({
       case VectorOrder.less:
         merged[id] = r;
       case VectorOrder.concurrent:
-        // Keep local as canonical; the remote version becomes a
-        // conflict copy with a fresh id and the merged version vector.
+        // Deterministic on BOTH devices: the record with the greater
+        // HLC (device-id tiebreak inside Hlc) stays canonical; the other
+        // becomes a conflict copy with a deterministic id derived from
+        // the entity id + losing device, so both sides mint the SAME
+        // copy and repeated syncs converge instead of duplicating.
+        final localWins = l.updatedAt >= r.updatedAt;
+        final winner = localWins ? l : r;
+        final loser = localWins ? r : l;
+        final joined = l.version.merge(r.version);
         merged[id] = SyncRecord(
-          entityId: l.entityId,
-          kind: l.kind,
-          payload: l.payload,
-          version: l.version.merge(r.version),
-          updatedAt: l.updatedAt,
+          entityId: winner.entityId,
+          kind: winner.kind,
+          payload: winner.payload,
+          version: joined,
+          updatedAt: winner.updatedAt,
         );
         conflictCopies.add(SyncRecord(
-          entityId: newId(),
-          kind: r.kind,
-          payload: r.payload,
-          version: l.version.merge(r.version),
-          updatedAt: r.updatedAt,
+          entityId: 'conflict:${loser.entityId}:${loser.updatedAt.deviceId}',
+          kind: loser.kind,
+          payload: loser.payload,
+          version: joined,
+          updatedAt: loser.updatedAt,
         ));
     }
   }

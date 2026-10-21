@@ -142,10 +142,19 @@ Last updated: 2026-10-21
   offer whose claimed id doesn't derive from its key is refused — and
   both sides compute the same 6-digit SAS from both keys + a session
   nonce for the users to compare. **6 tests passed.**
-- ⬜ The record-exchange session (mutually authenticated, framed like
-  the Tool Host protocol) + transport (LAN socket / Tailscale) that
-  carries the records; app-side record production from
-  ProjectStore/SkillStore and the Devices UI.
+- 🔵 Record-exchange session (`cairn_sync/session.dart`): framed
+  protocol with a mutual-auth handshake (each side signs the peer's
+  nonce with its long-term key; verification is against the key stored
+  at pairing — unpaired strangers are rejected before any record
+  moves), full record exchange, local deterministic merge. **Session
+  tests prove both sides converge to identical state (same canonical
+  records, same conflict-copy id) and that strangers are refused.**
+  Fixed during this work: concurrent-edit resolution is now
+  HLC-determined with deterministic conflict ids (previously
+  local-wins + random ids, which would never converge).
+- ⬜ Transport (LAN socket server/client + Tailscale reachability),
+  app-side record production from ProjectStore/SkillStore, applying
+  merge results in the app, and the Devices UI.
 
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜

@@ -83,7 +83,7 @@ void main() {
       expect(result.conflictCopies, isEmpty);
     });
 
-    test('concurrent project edits keep local + emit a conflict copy', () {
+    test('concurrent project edits resolve deterministically by HLC', () {
       final localRec =
           record('p1', payload: {'name': 'phone edit'}, version: {'phone': 1});
       final remoteRec = record('p1',
@@ -91,13 +91,20 @@ void main() {
           version: {'pc': 1},
           at: hlc(1500, 0, 'pc'));
       final result = mergeSyncRecords(local: [localRec], remote: [remoteRec]);
-      expect(result.merged.single.payload['name'], 'phone edit');
+      // The pc edit has the greater HLC (1500 > 1000): it is canonical on
+      // BOTH devices, and the phone edit becomes the conflict copy with
+      // a deterministic id.
+      expect(result.merged.single.payload['name'], 'pc edit');
       expect(result.conflictCopies, hasLength(1));
-      expect(result.conflictCopies.single.payload['name'], 'pc edit');
-      expect(result.conflictCopies.single.entityId, isNot('p1'));
+      expect(result.conflictCopies.single.payload['name'], 'phone edit');
+      expect(result.conflictCopies.single.entityId, 'conflict:p1:phone');
       // The merged record carries the joined version vector.
       expect(result.merged.single.version['phone'], 1);
       expect(result.merged.single.version['pc'], 1);
+      // Symmetry: swapping local/remote yields the same canonical state.
+      final swapped = mergeSyncRecords(local: [remoteRec], remote: [localRec]);
+      expect(swapped.merged.single.payload['name'], 'pc edit');
+      expect(swapped.conflictCopies.single.entityId, 'conflict:p1:phone');
     });
 
     test('journal records union by event id without duplication', () {
