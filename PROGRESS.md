@@ -7,11 +7,17 @@ Last updated: 2026-10-21
 
 ## M0 — Toolchain, repo skeleton, design & font assets 🔵
 
-- Toolchain (installing on the build VM, all under `$HOME`):
+- Toolchain (installed on the build VM, all under `$HOME`):
   - JDK: Temurin OpenJDK 17.0.20.1 ✅ verified (`java -version`)
-  - Flutter: stable 3.47.7 (downloading at time of writing)
-  - Android SDK: command-line tools + platform 35 + build-tools 35.0.0 (pending Flutter download)
-  - `flutter doctor` verdict: pending
+  - Flutter: **3.47.7 stable / Dart 3.13.5** ✅ verified (`flutter --version`)
+  - Android SDK: cmdline-tools + platform-tools (adb 1.0.41) + platform
+    android-35 + build-tools 35.0.0 ✅ installed. NOTE: Google's Java-based
+    `sdkmanager` cannot traverse this environment's authenticated egress
+    proxy (JDK tunneling bug), so the SDK packages were installed by
+    downloading the official archives from dl.google.com with curl and
+    unpacking them into the standard SDK layout; licenses recorded.
+    Gradle proxy settings were written to `~/.gradle/gradle.properties`.
+  - `flutter doctor` verdict: pending (after the APK smoke build)
 - Repo skeleton created (apps/, packages/, tool_host/, relay/, docs/, tools/, tests/). 🔵
 - Oracle: `npx getdesign@latest add oracle` executed in repo root →
   `DESIGN.md` (42,525 bytes) installed ✅. Tokens read and confirmed:
@@ -22,10 +28,20 @@ Last updated: 2026-10-21
   bundled (variable font + core statics + Farsi-digits variable + OFL.txt +
   AUTHORS.txt) under `apps/cairn_app/assets/fonts/arad/` ✅.
   SHA-256 of `AradVF.ttf`: `cd45c0bbe78ec6bd45b6f90d294feed37e08b1038c75a30d7388a51bc22bd42e`.
-- CI workflows: ⬜ (this milestone)
+- CI workflows: written (`.github/workflows/ci.yml`, `windows-build.yml`) ✅;
+  git repo initialised, first commit `c319b81` ✅.
 - Empty-app debug APK smoke build: ⬜ (this milestone, after doctor is green)
 
-## M1 — Core contracts ⬜
+## M1 — Core contracts ✅
+
+- `packages/cairn_core` implemented: agent blueprint + project format (JSON
+  round-trip, validation), task state machine (11 states, legal-transition
+  table, corrupt-history rejection), execution budgets (steps/model/tool/
+  wall-clock, injectable clock), append-only journal (JSONL, sequence-checked),
+  UUID v4 + idempotency keys.
+- **22 unit tests run and passed** (2026-10-21, `dart test`); `dart analyze`
+  clean. App scaffold generated with `flutter create` (android+windows only),
+  minSdk pinned to 26 (decision D4).
 ## M2 — Oracle theme + studio shells + Arad typography gate ⬜
 ## M3 — Model layer + agent editor + language pipeline ⬜
 ## M4 — Runtime (orchestrator/state machine/budgets) + test console ⬜
