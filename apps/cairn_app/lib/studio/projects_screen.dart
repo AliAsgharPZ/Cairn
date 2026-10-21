@@ -21,7 +21,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   late Future<List<AgentProject>> _projects = widget.store.list();
 
   void _reload() {
-    setState(() => _projects = widget.store.list());
+    // Block body on purpose: an arrow closure would return the Future,
+    // which setState forbids (it asserts in debug/test builds and the
+    // refresh silently never happens — caught by CI run #4).
+    setState(() {
+      _projects = widget.store.list();
+    });
   }
 
   Future<void> _createProject() async {
