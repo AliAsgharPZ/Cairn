@@ -44,7 +44,7 @@ Last updated: 2026-10-21
 - **22 unit tests run and passed** (2026-10-21, `dart test`); `dart analyze`
   clean. App scaffold generated with `flutter create` (android+windows only),
   minSdk pinned to 26 (decision D4).
-## M2 — Oracle theme + studio shells + Arad typography gate 🔵
+## M2 — Oracle theme + studio shells + Arad typography gate ✅
 
 - Token layer (`lib/ui/tokens.dart`) + full `ThemeData` (light + dark
   extension) built from DESIGN.md; Arad registered with explicit weights,
@@ -54,9 +54,10 @@ Last updated: 2026-10-21
   file persistence (`ProjectStore`, atomic JSON writes, corruption
   surfaced). Agent editor (full blueprint form), provider settings
   (secure key store + real connection test) and the live test console
-  are all wired. App tests: CI run #4 — 8/9 pass; 1 failing (identity
-  being fetched from the CI log 2026-10-21). The local `flutter test`
-  harness is sandbox-blocked, so app tests execute in CI only.
+  are all wired. App tests: **CI run #8 — 9/9 pass** (the create-project
+  flow needed duration-pumped settling inside runAsync; runs #4/#7
+  failed it 8/9 before the fix). The local `flutter test` harness is
+  sandbox-blocked, so app tests execute in CI only.
 
 ## M3 — Model layer + agent editor + language pipeline ✅ (engine) / editor UI in M2 scope
 
@@ -66,7 +67,7 @@ Last updated: 2026-10-21
 - **14 tests run and passed** (2026-10-21) against in-process HTTP servers;
   `dart analyze` clean.
 
-## M4 — Runtime (orchestrator/state machine/budgets) + test console 🔵
+## M4 — Runtime (orchestrator/state machine/budgets) + test console ✅
 
 - `packages/cairn_runtime`: Planner (strict JSON plan, validated against
   blueprint + device tool registry) and Orchestrator (normalize → plan →
