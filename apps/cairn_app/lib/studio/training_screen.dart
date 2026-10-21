@@ -489,7 +489,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
-  @override
   /// The ready sample dataset (the same one the in-chat tutorial
   /// uses): ten simple greeting/helper sentences, one per line.
   void _fillSample() {
@@ -506,6 +505,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     _say('مثال آماده رو گذاشتم — حالا دکمهٔ «ساخت دیتاست و توکن‌ساز» رو بزن.');
   }
 
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final s = S.of(context);
