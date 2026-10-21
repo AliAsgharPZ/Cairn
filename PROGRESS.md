@@ -52,9 +52,11 @@ Last updated: 2026-10-21
   the only brand-red surface.
 - Studio shell (rail/bar responsive) + Projects screen with real
   file persistence (`ProjectStore`, atomic JSON writes, corruption
-  surfaced). Widget + store tests written and analyze-clean; they execute
-  in CI (the local `flutter test` harness is sandbox-blocked, see Build
-  status). Editor screen wiring lands with M3/M4.
+  surfaced). Agent editor (full blueprint form), provider settings
+  (secure key store + real connection test) and the live test console
+  are all wired. App tests: CI run #4 — 8/9 pass; 1 failing (identity
+  being fetched from the CI log 2026-10-21). The local `flutter test`
+  harness is sandbox-blocked, so app tests execute in CI only.
 
 ## M3 — Model layer + agent editor + language pipeline ✅ (engine) / editor UI in M2 scope
 
@@ -70,31 +72,58 @@ Last updated: 2026-10-21
   blueprint + device tool registry) and Orchestrator (normalize → plan →
   approval gate → step execution with budgets/retries/idempotency keys →
   verification; every transition journaled; failure modes all fail loudly).
-- **10 tests run and passed** (2026-10-21): happy paths, plan/tool approval
-  denial, undeclared tool, budget exhaustion, verification rejection,
-  cancellation, malformed plan; `dart analyze` clean.
-- Test-console UI wiring: in progress.
-## M5 — Tools v1 + Windows Tool Host ⬜
+  Network policy enforced: tools flagged `requiresNetwork` are refused
+  when the agent policy disallows network.
+- **11 tests run and passed** (2026-10-21, incl. the network-policy test);
+  `dart analyze` clean.
+- Test-console UI: wired (agent picker, live journal polling, approval
+  dialogs as the gate, cancel token, honest unconfigured-provider state).
+
+## M5 — Tools v1 + Windows Tool Host 🔵
+
+- ✅ Platform tools (in-process, `packages/cairn_tools`): fs.list /
+  fs.read / fs.write confined to the agent workspace root (lexical
+  normalization + canonicalized nearest-ancestor check defeats `..` and
+  symlink escapes), shell.run (argv-only, timeout, truncated output),
+  http.get (size-capped, network-flagged). **16 tests passed**; wired
+  into the app registry. Totals across pure-Dart packages: **63 tests**.
+- ⬜ Windows Tool Host process (JSON-RPC over Named Pipe) — next.
+- Owner reference flows: `docs/flowcharts.md` (provided 2026-10-21).
+  Flow 1 = runtime acceptance picture (voice input captured there as a
+  requirement, not yet scheduled). Flow 2 = the M9 training pathway.
+
 ## M6 — Skills, policy/approvals, project versioning & export ⬜
 ## M7 — Pairing + two-way sync + conflict resolution ⬜
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜
+## M9 — Model-creation & training pathway + security hardening ⬜
+
+Scope = owner's Flow 2 (`docs/flowcharts.md`): capability definition →
+data collection/generation → cleaning → dataset splits → tokenization →
+architecture/size choice → base training → checkpoints → evaluation →
+instruction fine-tune → model registry → serve as a Cairn provider →
+feedback loop. Training jobs execute on the peer with the resources
+(Windows via Tool Host) under the overflow architecture. Honest bound:
+small/medium models and fine-tuning on PC-class hardware; the UI must
+state hardware limits instead of pretending foundation-scale training.
+
 ## M10 — Docs, packaging, verified ZIP delivery ⬜
 
 ## Build status (reported separately, per delivery rules)
 
-- Android APK: **cannot be built inside this sandbox** (verified 2026-10-21,
-  root cause fully diagnosed): the sandbox's network gate terminates
-  cross-process loopback TCP, which the Gradle client↔daemon channel
-  requires. Setting "Other TCP connections" to Ask and approving the
-  per-port prompts did NOT let the traffic through (repeat connections to
-  an approved host:port still reset; the test server never sees a byte).
-  The same gate blocks the `flutter test` harness (its VM-service
-  websocket), so the app's widget/store tests — written and analyze-clean —
-  execute in CI, not here. Pure-Dart package tests and `flutter analyze`
-  run fine locally. Build route: the `android-apk` job in
-  `.github/workflows/ci.yml` (needs the repo on GitHub), or any regular
-  machine with Flutter installed.
-- Windows binary: cannot be compiled in this Linux environment (by design of
-  the approved architecture it is produced by the GitHub Actions
-  `windows-latest` workflow / `tools/build_windows.ps1`); not built yet.
+- Android APK: **built in CI** (the sandbox cannot run Gradle — its
+  network gate kills cross-process loopback TCP; conclusively verified).
+  - Debug APK ✅ CI run #1 (commit 2cd02a9), artifact `cairn-debug-apk`.
+    First chat-attachment delivery FAILED on the client side (extension
+    stripped; 159 MB also exceeds the file-hosting limit) — superseded
+    by the release build below.
+  - **Release APK (arm64, split-per-ABI) ✅ CI run #4** (commit 07147ed):
+    v0.1.0, 19.5 MB, delivered to the owner via a direct download link
+    on 2026-10-21.
+  - CI run #4: dart-packages ✅ (63 pure-Dart tests), android-apk ✅,
+    android-release-apk ✅, flutter-app ❌ 8/9 tests (1 failure, under
+    investigation — the runAsync rewrite fixed the run #1 hang).
+- Windows binary: `windows-build` run #1 ❌ — failed at its `flutter
+  test` step with the same single app-test failure (not a Windows
+  compile error); to be re-run after that test is fixed. No Windows
+  binary exists yet — stated plainly.
