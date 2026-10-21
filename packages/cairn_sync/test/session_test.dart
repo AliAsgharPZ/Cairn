@@ -62,9 +62,9 @@ void main() {
       final a2b = StreamController<List<int>>();
       final b2a = StreamController<List<int>>();
       final phoneSession = SyncSession(
-          local: phone, peer: paired(pc), localRecords: phoneRecords);
+          local: phone, allowedPeers: [paired(pc)], localRecords: phoneRecords);
       final pcSession = SyncSession(
-          local: pc, peer: paired(phone), localRecords: pcRecords);
+          local: pc, allowedPeers: [paired(phone)], localRecords: pcRecords);
 
       final results = await Future.wait([
         phoneSession.run(b2a.stream, a2b.sink),
@@ -99,9 +99,9 @@ void main() {
 
       // The phone expects the pc; a stranger shows up instead.
       final phoneSession = SyncSession(
-          local: phone, peer: paired(pc), localRecords: const []);
+          local: phone, allowedPeers: [paired(pc)], localRecords: const []);
       final strangerSession = SyncSession(
-          local: stranger, peer: paired(phone), localRecords: const []);
+          local: stranger, allowedPeers: [paired(phone)], localRecords: const []);
 
       final phoneFuture = phoneSession.run(b2a.stream, a2b.sink);
       final strangerResult = strangerSession

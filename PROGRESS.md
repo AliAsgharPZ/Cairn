@@ -152,9 +152,19 @@ Last updated: 2026-10-21
   Fixed during this work: concurrent-edit resolution is now
   HLC-determined with deterministic conflict ids (previously
   local-wins + random ids, which would never converge).
-- ⬜ Transport (LAN socket server/client + Tailscale reachability),
-  app-side record production from ProjectStore/SkillStore, applying
-  merge results in the app, and the Devices UI.
+- 🔵 App-side sync (`studio/sync_service.dart`): SyncCoordinator
+  builds records from ProjectStore/SkillStore with persisted
+  bookkeeping (unchanged entities keep their version — no phantom
+  bumps; edits bump version+HLC; local deletions become tombstones)
+  and applies session results back (merged records written to the
+  stores, conflict copies as new "… (تعارض)" entities, deletions
+  moved to a persisted trash list). Socket transport in cairn_sync
+  (SyncServer + syncWithPeer) — **verified over a real loopback
+  socket test**; sync package now **9/9**. Coordinator covered by 3
+  app tests (run in CI).
+- ⬜ Remaining in M7: the Devices screen (identity bootstrap + seed in
+  secure storage, pairing by pasted offer + SAS compare, paired
+  device list, server start / "sync now"), then M8.
 
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜

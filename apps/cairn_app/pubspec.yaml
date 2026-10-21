@@ -17,6 +17,8 @@ dependencies:
     path: ../../packages/cairn_runtime
   cairn_tools:
     path: ../../packages/cairn_tools
+  cairn_sync:
+    path: ../../packages/cairn_sync
   path_provider: ^2.1.5
   flutter_secure_storage: ^9.2.4
 

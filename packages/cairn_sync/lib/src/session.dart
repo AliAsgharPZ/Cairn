@@ -85,12 +85,15 @@ class SyncSessionResult {
 class SyncSession {
   SyncSession({
     required this.local,
-    required this.peer,
+    required this.allowedPeers,
     required this.localRecords,
   });
 
   final DeviceKeyPair local;
-  final PairedDevice peer;
+
+  /// Devices paired with this one. The connecting peer must be in this
+  /// list (matched by its announced device id) AND prove its key.
+  final List<PairedDevice> allowedPeers;
   final List<SyncRecord> localRecords;
 
   Future<SyncSessionResult> run(
@@ -117,11 +120,18 @@ class SyncSession {
         'nonce': base64Encode(myNonce),
       });
       final hello = await next('hello');
-      if (hello['type'] != 'hello' ||
-          hello['deviceId'] != peer.identity.deviceId) {
-        throw StateError(
-            'sync authentication failed: unexpected peer ${hello['deviceId']}');
+      PairedDevice? peer;
+      for (final candidate in allowedPeers) {
+        if (candidate.identity.deviceId == hello['deviceId']) {
+          peer = candidate;
+          break;
+        }
       }
+      if (hello['type'] != 'hello' || peer == null) {
+        throw StateError(
+            'sync authentication failed: unpaired peer ${hello['deviceId']}');
+      }
+      final pairedPeer = peer;
       final peerNonce = base64Decode(hello['nonce'] as String);
 
       // 2. auth: sign the peer's nonce; verify the peer's signature.
@@ -136,10 +146,10 @@ class SyncSession {
       final expectedMessage = [
         ...utf8.encode(_authLabel),
         ...myNonce,
-        ...utf8.encode(peer.identity.deviceId),
+        ...utf8.encode(pairedPeer.identity.deviceId),
       ];
       final ok = await DeviceKeyPair.verify(
-          peer.identity.publicKeyBytes, expectedMessage, peerSignature);
+          pairedPeer.identity.publicKeyBytes, expectedMessage, peerSignature);
       if (!ok) {
         throw StateError(
             'sync authentication failed: peer could not prove its key');
