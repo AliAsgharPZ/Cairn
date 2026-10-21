@@ -53,3 +53,23 @@ jobs:
         with:
           name: cairn-debug-apk
           path: apps/cairn_app/build/app/outputs/flutter-apk/app-debug.apk
+
+  android-release-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build release APKs (split per ABI)
+        working-directory: apps/cairn_app
+        run: flutter build apk --release --split-per-abi
+      - name: Upload arm64 release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-release-apk-arm64
+          path: apps/cairn_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
