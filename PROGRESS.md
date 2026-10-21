@@ -100,7 +100,15 @@ Last updated: 2026-10-21
   Flow 1 = runtime acceptance picture (voice input captured there as a
   requirement, not yet scheduled). Flow 2 = the M9 training pathway.
 
-## M6 — Skills, policy/approvals, project versioning & export ⬜
+## M6 — Skills, policy/approvals, project versioning & export 🔵
+
+- ✅ Project export/import (part 1): `ProjectArchive` in cairn_core —
+  portable `.cairn.zip` (manifest + project.cairn.json) with strict
+  validation (foreign zip / future format version / missing payload /
+  corrupt JSON all refused). Wired into `ProjectStore` (exports folder;
+  id collisions import as a copy, never an overwrite). 5 archive tests;
+  cairn_core now 27/27. App UI buttons for export/import: next.
+- ⬜ Skills registry + grants UI.
 ## M7 — Pairing + two-way sync + conflict resolution ⬜
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜
@@ -129,9 +137,10 @@ state hardware limits instead of pretending foundation-scale training.
     v0.1.0, 19.5 MB, delivered to the owner via a direct download link
     on 2026-10-21.
   - CI run #4: dart-packages ✅ (63 pure-Dart tests), android-apk ✅,
-    android-release-apk ✅, flutter-app ❌ 8/9 tests (1 failure, under
-    investigation — the runAsync rewrite fixed the run #1 hang).
-- Windows binary: `windows-build` run #1 ❌ — failed at its `flutter
-  test` step with the same single app-test failure (not a Windows
-  compile error); to be re-run after that test is fixed. No Windows
-  binary exists yet — stated plainly.
+    android-release-apk ✅, flutter-app ❌ 8/9 tests.
+  - **CI run #8 (commit e6aeaa3): FULLY GREEN** — dart-packages ✅,
+    flutter-app ✅ 9/9, android-apk ✅, android-release-apk ✅.
+- Windows binary: `windows-build` runs #1/#2 ❌ — both failed at the
+  `flutter test` step on the (now fixed) single app test; the Windows
+  compile step has not run yet. Re-triggered after CI run #8 went green;
+  verdict pending. No Windows binary exists yet — stated plainly.

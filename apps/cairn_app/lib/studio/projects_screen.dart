@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cairn_core/cairn_core.dart';
 import 'package:flutter/material.dart';
 
@@ -64,8 +66,82 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
-  Future<void> _deleteProject(AgentProject project) async {
-    final confirmed = await showDialog<bool>(
+  /// Exports the project as a `.cairn.zip` into the app's exports folder.
+  Future<void> _exportProject(AgentProject project) async {
+    try {
+      final file = await widget.store.exportProject(project);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'خروجی گرفته شد: ${file.path.split('/').last} (پوشهٔ exports)')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('خطا در خروجی گرفتن: $e')));
+      }
+    }
+  }
+
+  /// Import dialog: lists the archives in the exports folder and imports
+  /// the chosen one (validated; id collisions become a copy).
+  Future<void> _importProject() async {
+    final chosen = await showDialog<File>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('وارد کردن پروژه'),
+        content: SizedBox(
+          width: 420,
+          child: FutureBuilder<List<File>>(
+            future: widget.store.listExports(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final files = snapshot.data!;
+              if (files.isEmpty) {
+                return const Text(
+                    'آرشیوی در پوشهٔ exports نیست. اول روی یک دستگاه خروجی بگیر و فایل .cairn.zip را اینجا بگذار.');
+              }
+              return ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final f in files)
+                    ListTile(
+                      leading: const Icon(Icons.archive_outlined),
+                      title: Text(f.path.split('/').last),
+                      onTap: () => Navigator.pop(context, f),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('لغو'),
+          ),
+        ],
+      ),
+    );
+    if (chosen == null) return;
+    try {
+      final imported = await widget.store.importArchive(chosen);
+      _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('پروژهٔ «${imported.name}» وارد شد')));
+      }
+    } on FormatException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _deleteProject(AgentProject project) async {    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حذف پروژه'),
@@ -100,6 +176,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             children: [
               Text('پروژه‌های ایجنت', style: theme.textTheme.headlineMedium),
               const Spacer(),
+              OutlinedButton.icon(
+                onPressed: _importProject,
+                icon: const Icon(Icons.file_upload_outlined),
+                label: const Text('وارد کردن'),
+              ),
+              const SizedBox(width: CairnSpacing.sm),
               FilledButton.icon(
                 onPressed: _createProject,
                 icon: const Icon(Icons.add),
@@ -166,10 +248,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           '${project.agents.length} ایجنت · '
                           'آخرین تغییر: ${_formatDate(project.updatedAt)}',
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: 'حذف پروژه',
-                          onPressed: () => _deleteProject(project),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.ios_share),
+                              tooltip: 'خروجی (.cairn.zip)',
+                              onPressed: () => _exportProject(project),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'حذف پروژه',
+                              onPressed: () => _deleteProject(project),
+                            ),
+                          ],
                         ),
                         onTap: () => widget.onOpenProject?.call(project),
                       ),
