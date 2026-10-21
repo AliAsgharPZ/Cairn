@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:cairn_core/cairn_core.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/strings.dart';
@@ -90,47 +89,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   /// the chosen one (validated; id collisions become a copy).
   Future<void> _importProject() async {
     final s = S.of(context);
-    final chosen = await showDialog<File>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.importTitle),
-        content: SizedBox(
-          width: 420,
-          child: FutureBuilder<List<File>>(
-            future: widget.store.listExports(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final files = snapshot.data!;
-              if (files.isEmpty) {
-                return Text(s.importEmpty);
-              }
-              return ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final f in files)
-                    ListTile(
-                      leading: const Icon(Icons.archive_outlined),
-                      title: Text(f.path.split('/').last),
-                      onTap: () => Navigator.pop(context, f),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(s.cancel),
-          ),
-        ],
-      ),
+    final picked = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Cairn project', extensions: ['zip']),
+        XTypeGroup(label: 'All files'),
+      ],
     );
-    if (chosen == null) return;
+    if (picked == null) return;
     try {
-      final imported = await widget.store.importArchive(chosen);
+      final bytes = await picked.readAsBytes();
+      final imported =
+          await widget.store.importArchiveBytes(picked.name, bytes);
       _reload();
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -140,6 +109,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(s.importError(e))));
       }
     }
   }

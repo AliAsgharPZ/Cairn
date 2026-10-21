@@ -109,6 +109,23 @@ class ProjectStore {
     return files;
   }
 
+  /// Imports an archive picked from anywhere on the device. The file
+  /// picker hands back bytes, not a dependable path (Android's SAF in
+  /// particular), so the bytes are staged into the imports folder and
+  /// then validated by [importArchive] exactly like a local file.
+  /// This is the fix for the v1.0.0 import dead end, where the dialog
+  /// only listed files already inside the app's private exports
+  /// folder — a place the owner could never put a file.
+  Future<AgentProject> importArchiveBytes(
+      String fileName, List<int> bytes) async {
+    final safeName = fileName.split(RegExp(r'[/\\]')).last;
+    final dir = Directory('${baseDir.path}/imports');
+    await dir.create(recursive: true);
+    final staged = File('${dir.path}/$safeName');
+    await staged.writeAsBytes(bytes, flush: true);
+    return importArchive(staged);
+  }
+
   /// Imports an archive file (validated by [ProjectArchive]) and persists
   /// it. If a project with the same id already exists, the import is kept
   /// as a copy with a fresh id — importing never silently overwrites.

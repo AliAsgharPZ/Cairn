@@ -3,6 +3,7 @@
 library;
 
 export 'src/blueprint.dart';
+export 'src/default_project.dart';
 export 'src/budget.dart';
 export 'src/ids.dart';
 export 'src/journal.dart';

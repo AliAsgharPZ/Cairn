@@ -59,10 +59,8 @@ class S {
       : 'Exported: $file (exports folder)';
   String exportError(Object e) =>
       fa ? 'خطا در خروجی گرفتن: $e' : 'Export failed: $e';
-  String get importTitle => fa ? 'وارد کردن پروژه' : 'Import Project';
-  String get importEmpty => fa
-      ? 'آرشیوی در پوشهٔ exports نیست. اول روی یک دستگاه خروجی بگیر و فایل .cairn.zip را اینجا بگذار.'
-      : 'No archive in the exports folder. Export one on a device first and put the .cairn.zip file here.';
+  String importError(Object e) =>
+      fa ? 'خطا در وارد کردن پروژه: $e' : 'Import failed: $e';
   String imported(String name) =>
       fa ? 'پروژهٔ «$name» وارد شد' : 'Project “$name” imported';
   String loadError(Object e) =>
