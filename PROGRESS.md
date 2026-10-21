@@ -141,6 +141,11 @@ state hardware limits instead of pretending foundation-scale training.
   - **CI run #8 (commit e6aeaa3): FULLY GREEN** — dart-packages ✅,
     flutter-app ✅ 9/9, android-apk ✅, android-release-apk ✅.
 - Windows binary: `windows-build` runs #1/#2 ❌ — both failed at the
-  `flutter test` step on the (now fixed) single app test; the Windows
-  compile step has not run yet. Re-triggered after CI run #8 went green;
-  verdict pending. No Windows binary exists yet — stated plainly.
+  `flutter test` step on the (now fixed) single app test.
+  **`windows-build` #3 (commit dd5b4a8): ✅ SUCCESS** — tests passed on
+  Windows, `flutter build windows --release` compiled, artifact
+  `cairn-windows-release` (12.7 MB, sha256 8fb23251…) downloaded,
+  contents verified (cairn_app.exe + plugin DLLs + Arad/Inter assets)
+  and delivered to the owner via a direct download link on 2026-10-21.
+  The Windows build therefore exists and runs the same studio code;
+  the Named Pipe Tool Host wiring remains the last M5 item.
