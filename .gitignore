@@ -27,3 +27,6 @@ build/
 key.properties
 .env
 dist/
+
+# Local build outputs and delivered binaries
+builds/
