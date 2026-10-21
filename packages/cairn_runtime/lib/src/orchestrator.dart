@@ -120,13 +120,23 @@ class Orchestrator {
     );
     journal.append('task.created',
         taskId: task.id, data: {'agentId': agent.id, 'instruction': instruction});
+    // Flow-1 roles, resolved once: each stage runs on its own model
+    // when the blueprint names one, else on the main model. Journaled
+    // so the console shows exactly which model did what.
+    final translatorModel = agent.translatorModel ?? agent.model;
+    final verifierModel = agent.verifierModel ?? agent.model;
+    journal.append('task.roles', taskId: task.id, data: {
+      'main': '${agent.model.providerId}/${agent.model.modelId}',
+      'translator': '${translatorModel.providerId}/${translatorModel.modelId}',
+      'verifier': '${verifierModel.providerId}/${verifierModel.modelId}',
+    });
 
     // ── Analyzing: normalize the instruction ──────────────────────────────
     _transition(task, TaskStatus.analyzing);
     final NormalizedInstruction normalized;
     try {
       tracker.consumeModelCall();
-      normalized = await _pipeline.normalize(agent.model, instruction);
+      normalized = await _pipeline.normalize(translatorModel, instruction);
     } on BudgetExceededException catch (e) {
       _transition(task, TaskStatus.failed);
       return _fail(task, 'Budget exceeded during analysis: ${e.kind}');
@@ -255,7 +265,7 @@ class Orchestrator {
     try {
       tracker.consumeModelCall();
       final res = await provider.complete(
-        agent.model,
+        verifierModel,
         ModelRequest(messages: [
           ChatMessage(ChatRole.system, agent.systemPrompt),
           const ChatMessage(ChatRole.system,

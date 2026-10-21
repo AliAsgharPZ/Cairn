@@ -17,6 +17,10 @@ class FakeModelProvider implements ModelProvider {
   final List<String> _scripted;
   final List<ModelRequest> requests = [];
 
+  /// The [ModelConfig] of each call, in order — lets tests verify
+  /// role routing (which model served normalize / plan / verify).
+  final List<ModelConfig> configs = [];
+
   @override
   String get id => 'fake';
 
@@ -24,6 +28,7 @@ class FakeModelProvider implements ModelProvider {
   Future<ModelResponse> complete(
       ModelConfig config, ModelRequest request) async {
     requests.add(request);
+    configs.add(config);
     if (_scripted.isEmpty) {
       throw StateError(
           'FakeModelProvider script exhausted after ${requests.length} request(s)');

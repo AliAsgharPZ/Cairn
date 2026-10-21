@@ -51,6 +51,15 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
   String? _editingId;
   String _providerId = 'ollama';
   double? _temperature;
+
+  // Flow-1 role models: a separate model per role, or "same as main"
+  // (which is stored as null in the blueprint).
+  bool _translatorSeparate = false;
+  String _translatorProviderId = 'ollama';
+  final _translatorModelId = TextEditingController();
+  bool _verifierSeparate = false;
+  String _verifierProviderId = 'ollama';
+  final _verifierModelId = TextEditingController();
   ApprovalLevel _approval = ApprovalLevel.sensitiveOnly;
   String _primaryLanguage = 'auto';
   bool _translate = true;
@@ -66,6 +75,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     _systemPrompt.dispose();
     _modelId.dispose();
     _maxTokens.dispose();
+    _translatorModelId.dispose();
+    _verifierModelId.dispose();
     super.dispose();
   }
 
@@ -80,6 +91,12 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       _providerId = widget.providerConfigs.isNotEmpty
           ? widget.providerConfigs.first.providerId
           : 'ollama';
+      _translatorSeparate = false;
+      _verifierSeparate = false;
+      _translatorProviderId = _providerId;
+      _verifierProviderId = _providerId;
+      _translatorModelId.clear();
+      _verifierModelId.clear();
       _temperature = null;
       _approval = ApprovalLevel.sensitiveOnly;
       _primaryLanguage = 'auto';
@@ -100,6 +117,12 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       _modelId.text = a.model.modelId;
       _maxTokens.text = a.model.maxOutputTokens?.toString() ?? '';
       _providerId = a.model.providerId;
+      _translatorSeparate = a.translatorModel != null;
+      _translatorProviderId = a.translatorModel?.providerId ?? _providerId;
+      _translatorModelId.text = a.translatorModel?.modelId ?? '';
+      _verifierSeparate = a.verifierModel != null;
+      _verifierProviderId = a.verifierModel?.providerId ?? _providerId;
+      _verifierModelId.text = a.verifierModel?.modelId ?? '';
       _temperature = a.model.temperature;
       _approval = a.policy.approvalLevel;
       _primaryLanguage = a.language.primaryLanguage;
@@ -141,9 +164,11 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                     for (final skill in widget.skills)
                       ListTile(
                         title: Text(skill.name),
-                        subtitle: Text(skill.toolIds.isEmpty
-                            ? 'بدون ابزار'
-                            : skill.toolIds.join('، ')),
+                        subtitle: Text(
+                          skill.toolIds.isEmpty
+                              ? 'بدون ابزار'
+                              : skill.toolIds.join('، '),
+                        ),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline),
                           tooltip: 'حذف مهارت',
@@ -158,8 +183,10 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                         ),
                       ),
                   const Divider(),
-                  Text('مهارت تازه',
-                      style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    'مهارت تازه',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   TextField(
                     controller: name,
                     decoration: const InputDecoration(labelText: 'نام مهارت'),
@@ -172,7 +199,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                     controller: instructions,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                        labelText: 'دستورالعمل برای ایجنت'),
+                      labelText: 'دستورالعمل برای ایجنت',
+                    ),
                   ),
                   const SizedBox(height: CairnSpacing.sm),
                   const Text('ابزارهای این مهارت:'),
@@ -245,6 +273,18 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
         temperature: _temperature,
         maxOutputTokens: maxTokens,
       ),
+      translatorModel: _translatorSeparate
+          ? ModelConfig(
+              providerId: _translatorProviderId,
+              modelId: _translatorModelId.text.trim(),
+            )
+          : null,
+      verifierModel: _verifierSeparate
+          ? ModelConfig(
+              providerId: _verifierProviderId,
+              modelId: _verifierModelId.text.trim(),
+            )
+          : null,
       language: LanguageConfig(
         primaryLanguage: _primaryLanguage,
         translateWhenNeeded: _translate,
@@ -293,9 +333,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     setState(() => _editingId = blueprint.id);
     widget.onProjectChanged?.call();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ایجنت ذخیره شد')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('ایجنت ذخیره شد')));
     }
   }
 
@@ -326,6 +365,67 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     _newAgent();
   }
 
+  /// One Flow-1 role's model picker: either "same as the main model"
+  /// (stored as null) or a separate provider + model — any configured
+  /// provider counts, external or local (Ollama, trained models).
+  Widget _rolePicker({
+    required String title,
+    required String explanation,
+    required bool separate,
+    required ValueChanged<bool> onSeparate,
+    required String providerId,
+    required ValueChanged<String> onProvider,
+    required TextEditingController model,
+    required List<String> providerIds,
+    String? hint,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleSmall),
+        const SizedBox(height: CairnSpacing.xs),
+        Text(explanation, style: theme.textTheme.bodySmall),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('برای این نقش یه مدل جدا می‌خوام'),
+          subtitle: const Text('خاموش = همان مغز اصلی این کار را هم می‌کند'),
+          value: separate,
+          onChanged: onSeparate,
+        ),
+        if (separate) ...[
+          DropdownButtonFormField<String>(
+            initialValue: providerId,
+            decoration: const InputDecoration(
+              labelText: 'ارائه‌دهنده (Provider)',
+            ),
+            items: [
+              for (final id in providerIds)
+                DropdownMenuItem(
+                  value: id,
+                  child: Text(knownProviders[id] ?? id),
+                ),
+            ],
+            onChanged: (v) {
+              if (v != null) onProvider(v);
+            },
+          ),
+          const SizedBox(height: CairnSpacing.sm),
+          TextField(
+            controller: model,
+            decoration: const InputDecoration(
+              labelText: 'شناسهٔ مدل (Model ID)',
+            ),
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: CairnSpacing.xs),
+            Text(hint, style: theme.textTheme.bodySmall),
+          ],
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final project = widget.project;
@@ -333,7 +433,9 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(CairnSpacing.xxl),
-          child: Text('اول از بخش «پروژه‌ها» یک پروژه را باز کن تا ایجنت‌هایش را اینجا ویرایش کنی.'),
+          child: Text(
+            'اول از بخش «پروژه‌ها» یک پروژه را باز کن تا ایجنت‌هایش را اینجا ویرایش کنی.',
+          ),
         ),
       );
     }
@@ -348,13 +450,20 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              CairnSpacing.md, CairnSpacing.md, CairnSpacing.md, 0),
+            CairnSpacing.md,
+            CairnSpacing.md,
+            CairnSpacing.md,
+            0,
+          ),
           child: Wrap(
             spacing: CairnSpacing.xs,
             runSpacing: CairnSpacing.xs,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('پروژه: ${project.name}', style: theme.textTheme.titleMedium),
+              Text(
+                'پروژه: ${project.name}',
+                style: theme.textTheme.titleMedium,
+              ),
               const SizedBox(width: CairnSpacing.sm),
               for (final agent in project.agents)
                 ChoiceChip(
@@ -392,19 +501,36 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                   minLines: 3,
                   maxLines: 6,
                   decoration: const InputDecoration(
-                      labelText: 'پرامپت سیستم (System Prompt)'),
+                    labelText: 'پرامپت سیستم (System Prompt)',
+                  ),
                 ),
                 const SizedBox(height: CairnSpacing.lg),
-                Text('مدل', style: theme.textTheme.titleMedium),
+                Text('نقش‌ها و مدل‌ها', style: theme.textTheme.titleMedium),
+                const SizedBox(height: CairnSpacing.xs),
+                Text(
+                  'هر ایجنت مثل یه تیم کوچیکه (دقیقاً مثل فلوچارت): هر نقش '
+                  'می‌تونه مدل خودش رو داشته باشه — خارجی (مثل GPT) یا '
+                  'محلی روی دستگاه خودت (مثل Gemma با Ollama).',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: CairnSpacing.sm),
+                Text('🧠 مغز اصلی', style: theme.textTheme.titleSmall),
+                Text(
+                  'مدلی که فکر می‌کند، برنامه می‌ریزد و جواب نهایی را می‌سازد.',
+                  style: theme.textTheme.bodySmall,
+                ),
                 const SizedBox(height: CairnSpacing.xs),
                 DropdownButtonFormField<String>(
                   initialValue: _providerId,
-                  decoration:
-                      const InputDecoration(labelText: 'ارائه‌دهنده (Provider)'),
+                  decoration: const InputDecoration(
+                    labelText: 'ارائه‌دهنده (Provider)',
+                  ),
                   items: [
                     for (final id in providerIds)
                       DropdownMenuItem(
-                          value: id, child: Text(knownProviders[id] ?? id)),
+                        value: id,
+                        child: Text(knownProviders[id] ?? id),
+                      ),
                   ],
                   onChanged: (v) {
                     if (v == null) return;
@@ -424,8 +550,9 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 const SizedBox(height: CairnSpacing.sm),
                 TextField(
                   controller: _modelId,
-                  decoration:
-                      const InputDecoration(labelText: 'شناسهٔ مدل (Model ID)'),
+                  decoration: const InputDecoration(
+                    labelText: 'شناسهٔ مدل (Model ID)',
+                  ),
                 ),
                 const SizedBox(height: CairnSpacing.sm),
                 Row(
@@ -435,7 +562,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                         controller: _maxTokens,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                            labelText: 'سقف توکن خروجی (اختیاری)'),
+                          labelText: 'سقف توکن خروجی (اختیاری)',
+                        ),
                       ),
                     ),
                     const SizedBox(width: CairnSpacing.md),
@@ -455,8 +583,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                             min: 0,
                             max: 2,
                             divisions: 20,
-                            onChanged: (v) =>
-                                setState(() => _temperature = v),
+                            onChanged: (v) => setState(() => _temperature = v),
                           ),
                         ],
                       ),
@@ -468,13 +595,66 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                   ],
                 ),
                 const SizedBox(height: CairnSpacing.lg),
+                _rolePicker(
+                  title: '🌐 مترجم و آماده‌ساز',
+                  explanation:
+                      'اولِ کار، متن کاربر را می‌خواند، زبانش را '
+                      'تشخیص می‌دهد و اگر لازم بود ترجمه و شفافش می‌کند تا '
+                      'مغز اصلی دقیق بفهمد چی می‌خواد.',
+                  separate: _translatorSeparate,
+                  onSeparate: (v) => setState(() => _translatorSeparate = v),
+                  providerId: _translatorProviderId,
+                  onProvider: (v) => setState(() => _translatorProviderId = v),
+                  model: _translatorModelId,
+                  providerIds: providerIds,
+                  hint:
+                      'نکته: می‌تونی یه مدل سبکِ محلی برای ترجمه بذاری؛ '
+                      'مثلاً Gemma روی Ollama — کافیه تو تنظیمات، Ollama '
+                      'رو به‌عنوان ارائه‌دهنده داشته باشی و اسم مدل رو '
+                      'اینجا بنویسی.',
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                _rolePicker(
+                  title: '✅ بررسی‌کنندهٔ نتیجه',
+                  explanation:
+                      'آخرِ کار، نتیجه را با خواستهٔ کاربر مقایسه '
+                      'می‌کند؛ اگر کار ناقص باشد، اجرا رد می‌شود و الکی '
+                      '«تمام شد» نمی‌گوید.',
+                  separate: _verifierSeparate,
+                  onSeparate: (v) => setState(() => _verifierSeparate = v),
+                  providerId: _verifierProviderId,
+                  onProvider: (v) => setState(() => _verifierProviderId = v),
+                  model: _verifierModelId,
+                  providerIds: providerIds,
+                ),
+                const SizedBox(height: CairnSpacing.lg),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(CairnSpacing.md),
+                  decoration: BoxDecoration(
+                    color: CairnColors.canvasTint,
+                    borderRadius: BorderRadius.circular(CairnRadii.md),
+                  ),
+                  child: Text(
+                    '🧭 هماهنگ‌کننده مدل نیست! موتور خودِ Cairn است؛ '
+                    'برنامه‌ریزی قدم‌ها، نوبتِ حرف‌زدن مدل‌ها و صدا زدن '
+                    'ابزارها دست اوست.\n'
+                    '🛠 ابزارها و مهارت‌ها دست‌های ایجنت‌اند — پایینِ همین '
+                    'صفحه انتخابشان می‌کنی.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: CairnSpacing.lg),
                 Text('زبان و حافظه', style: theme.textTheme.titleMedium),
                 const SizedBox(height: CairnSpacing.xs),
                 DropdownButtonFormField<String>(
                   initialValue: _primaryLanguage,
                   decoration: const InputDecoration(labelText: 'زبان اصلی'),
                   items: const [
-                    DropdownMenuItem(value: 'auto', child: Text('تشخیص خودکار')),
+                    DropdownMenuItem(
+                      value: 'auto',
+                      child: Text('تشخیص خودکار'),
+                    ),
                     DropdownMenuItem(value: 'fa', child: Text('فارسی')),
                     DropdownMenuItem(value: 'en', child: Text('English')),
                   ],
@@ -511,8 +691,9 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                       child: Text('بدون پرسش اجرا کند'),
                     ),
                   ],
-                  onChanged: (v) =>
-                      setState(() => _approval = v ?? ApprovalLevel.sensitiveOnly),
+                  onChanged: (v) => setState(
+                    () => _approval = v ?? ApprovalLevel.sensitiveOnly,
+                  ),
                 ),
                 SwitchListTile(
                   title: const Text('دسترسی شبکه مجاز باشد'),
@@ -541,8 +722,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 const SizedBox(height: CairnSpacing.lg),
                 Row(
                   children: [
-                    Text('مهارت‌های متصل',
-                        style: theme.textTheme.titleMedium),
+                    Text('مهارت‌های متصل', style: theme.textTheme.titleMedium),
                     const Spacer(),
                     OutlinedButton.icon(
                       onPressed: _manageSkills,
@@ -554,14 +734,17 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 const SizedBox(height: CairnSpacing.xs),
                 if (widget.skills.isEmpty)
                   const Text(
-                      'هنوز مهارتی نصب نشده است؛ از «مدیریت مهارت‌ها» بساز.')
+                    'هنوز مهارتی نصب نشده است؛ از «مدیریت مهارت‌ها» بساز.',
+                  )
                 else
                   for (final skill in widget.skills)
                     CheckboxListTile(
                       title: Text(skill.name),
-                      subtitle: Text(skill.description.isEmpty
-                          ? '${skill.toolIds.length} ابزار'
-                          : skill.description),
+                      subtitle: Text(
+                        skill.description.isEmpty
+                            ? '${skill.toolIds.length} ابزار'
+                            : skill.description,
+                      ),
                       value: _skillIds.contains(skill.id),
                       onChanged: (v) => setState(() {
                         if (v == true) {

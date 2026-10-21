@@ -133,6 +133,8 @@ class AgentBlueprint {
     this.description = '',
     this.systemPrompt = '',
     required this.model,
+    this.translatorModel,
+    this.verifierModel,
     this.language = const LanguageConfig(),
     List<ToolBinding>? tools,
     List<String>? skillIds,
@@ -147,7 +149,22 @@ class AgentBlueprint {
   String name;
   String description;
   String systemPrompt;
+
+  /// The main model — the agent's brain (Flow 1: «مدل اصلی»). Planning,
+  /// model steps and the final answer run on it.
   ModelConfig model;
+
+  /// Flow-1 role: the request-preparation model («مدل آماده‌ساز /
+  /// مترجم») — language normalization and translation run on it.
+  /// Null means "same as the main model". Any provider counts,
+  /// including a local one (e.g. a Gemma model served by Ollama).
+  ModelConfig? translatorModel;
+
+  /// Flow-1 role: the verification model («مدل بررسی‌کننده») — the
+  /// final check that the goal was really achieved runs on it.
+  /// Null means "same as the main model".
+  ModelConfig? verifierModel;
+
   LanguageConfig language;
   final List<ToolBinding> tools;
   final List<String> skillIds;
@@ -170,6 +187,18 @@ class AgentBlueprint {
     if (mot != null && mot <= 0) {
       issues.add('model.maxOutputTokens must be positive');
     }
+    for (final (role, roleModel) in [
+      ('translatorModel', translatorModel),
+      ('verifierModel', verifierModel),
+    ]) {
+      if (roleModel == null) continue;
+      if (roleModel.providerId.isEmpty) {
+        issues.add('$role.providerId is required');
+      }
+      if (roleModel.modelId.isEmpty) {
+        issues.add('$role.modelId is required');
+      }
+    }
     if (memory.maxContextMessages < 1) {
       issues.add('memory.maxContextMessages must be >= 1');
     }
@@ -189,6 +218,9 @@ class AgentBlueprint {
         'description': description,
         'systemPrompt': systemPrompt,
         'model': model.toJson(),
+        if (translatorModel != null)
+          'translatorModel': translatorModel!.toJson(),
+        if (verifierModel != null) 'verifierModel': verifierModel!.toJson(),
         'language': language.toJson(),
         'tools': tools.map((t) => t.toJson()).toList(),
         'skillIds': skillIds,
@@ -207,6 +239,14 @@ class AgentBlueprint {
       description: json['description'] as String? ?? '',
       systemPrompt: json['systemPrompt'] as String? ?? '',
       model: ModelConfig.fromJson(modelJson.cast<String, Object?>()),
+      translatorModel: json['translatorModel'] is Map
+          ? ModelConfig.fromJson(
+              (json['translatorModel'] as Map).cast<String, Object?>())
+          : null,
+      verifierModel: json['verifierModel'] is Map
+          ? ModelConfig.fromJson(
+              (json['verifierModel'] as Map).cast<String, Object?>())
+          : null,
       language: json['language'] is Map
           ? LanguageConfig.fromJson(
               (json['language'] as Map).cast<String, Object?>())
