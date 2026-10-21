@@ -21,8 +21,10 @@ class SkillStore {
     }
   }
 
-  File _fileFor(String skillId) =>
-      File('${_skillsDir.path}/$skillId.skill.json');
+  /// Same filesystem-safe mapping as ProjectStore: sync conflict
+  /// ids contain ':' which Windows file names forbid.
+  File _fileFor(String skillId) => File(
+      '${_skillsDir.path}/${skillId.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}.skill.json');
 
   /// Persists [skill]. Throws [FormatException] if the skill is invalid.
   Future<void> save(Skill skill) async {

@@ -75,6 +75,17 @@ jobs:
           else
             echo "No signing secret configured; the release APK will be debug-signed."
           fi
+      - name: Verify release signing secrets (fast; prints no secret values)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_PATH" ] && [ -f "$KEYSTORE_PATH" ]; then
+            keytool -list -v -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -E "SHA256:" \
+              && echo "SIGNING VERIFY OK: keystore opens with the configured secrets"
+          else
+            echo "SIGNING VERIFY SKIPPED: no keystore decoded (debug-signed build)"
+          fi
       - name: Build release APKs (split per ABI)
         working-directory: apps/cairn_app
         env:

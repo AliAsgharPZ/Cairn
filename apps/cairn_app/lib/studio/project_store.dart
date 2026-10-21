@@ -24,8 +24,14 @@ class ProjectStore {
     }
   }
 
-  File _fileFor(String projectId) =>
-      File('${_projectsDir.path}/$projectId.cairn.json');
+  /// Maps an entity id to a filesystem-safe file name. Sync conflict
+  /// copies carry ids like `conflict:<uuid>:<deviceId>` — the colons
+  /// are illegal in Windows file names (CI caught this: errno 123),
+  /// so anything outside [A-Za-z0-9._-] becomes '_'. Ids themselves
+  /// are read back from file CONTENT (see [list]), so the mapping
+  /// only needs to be deterministic, which it is.
+  File _fileFor(String projectId) => File(
+      '${_projectsDir.path}/${projectId.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}.cairn.json');
 
   /// Creates, validates and persists a new empty project.
   Future<AgentProject> createProject(String name,
