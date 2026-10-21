@@ -3,7 +3,9 @@ import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
+import 'app_settings.dart';
 import 'provider_factory.dart';
 import 'provider_settings.dart';
 
@@ -17,11 +19,17 @@ class SettingsScreen extends StatefulWidget {
     required this.keyStore,
     this.onChanged,
     this.modelRegistry,
+    this.appSettings,
+    this.onAppSettingsChanged,
   });
 
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
   final VoidCallback? onChanged;
+
+  /// App-level settings (language/theme) for the appearance section.
+  final AppSettings? appSettings;
+  final ValueChanged<AppSettings>? onAppSettingsChanged;
 
   /// Registry of locally trained models (for 'local-trained' configs).
   final ModelRegistryStore? modelRegistry;
@@ -142,11 +150,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
+    final appSettings = widget.appSettings;
     return Padding(
       padding: const EdgeInsets.all(CairnSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (appSettings != null) ...[
+            Text(s.appearanceAndLanguage,
+                style: theme.textTheme.headlineMedium),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: CairnSpacing.xs),
+              color: CairnColors.accentGold,
+            ),
+            const SizedBox(height: CairnSpacing.md),
+            Text(s.language, style: theme.textTheme.labelLarge),
+            const SizedBox(height: CairnSpacing.xs),
+            Wrap(
+              spacing: CairnSpacing.sm,
+              children: [
+                ChoiceChip(
+                  label: Text(s.persian),
+                  selected: appSettings.languageCode == 'fa',
+                  onSelected: (sel) {
+                    if (sel) {
+                      widget.onAppSettingsChanged
+                          ?.call(appSettings.copyWith(languageCode: 'fa'));
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: Text(s.english),
+                  selected: appSettings.languageCode == 'en',
+                  onSelected: (sel) {
+                    if (sel) {
+                      widget.onAppSettingsChanged
+                          ?.call(appSettings.copyWith(languageCode: 'en'));
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: CairnSpacing.md),
+            Text(s.theme, style: theme.textTheme.labelLarge),
+            const SizedBox(height: CairnSpacing.xs),
+            Wrap(
+              spacing: CairnSpacing.sm,
+              children: [
+                for (final (value, label) in [
+                  ('system', s.themeSystem),
+                  ('light', s.themeLight),
+                  ('dark', s.themeDark),
+                ])
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: appSettings.themeMode == value,
+                    onSelected: (sel) {
+                      if (sel) {
+                        widget.onAppSettingsChanged
+                            ?.call(appSettings.copyWith(themeMode: value));
+                      }
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: CairnSpacing.xxl),
+          ],
           Row(
             children: [
               Text('ارائه‌دهنده‌های مدل', style: theme.textTheme.headlineMedium),

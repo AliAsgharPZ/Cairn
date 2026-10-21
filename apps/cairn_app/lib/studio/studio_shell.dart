@@ -6,8 +6,10 @@ import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/cairn_theme.dart';
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'agent_editor_screen.dart';
+import 'app_settings.dart';
 import 'device_identity.dart';
 import 'devices_screen.dart';
 import 'project_store.dart';
@@ -33,6 +35,8 @@ class StudioShell extends StatefulWidget {
     required this.skillStore,
     required this.seedStore,
     this.toolHostStatus,
+    this.appSettings,
+    this.onAppSettingsChanged,
   });
 
   final ProjectStore store;
@@ -46,6 +50,11 @@ class StudioShell extends StatefulWidget {
   /// slim banner so the execution mode is always visible.
   final String? toolHostStatus;
 
+  /// App-level settings (language/theme) + change callback, forwarded
+  /// to the Settings screen's appearance section.
+  final AppSettings? appSettings;
+  final ValueChanged<AppSettings>? onAppSettingsChanged;
+
   @override
   State<StudioShell> createState() => _StudioShellState();
 }
@@ -56,14 +65,14 @@ class _Destination {
   final IconData icon;
 }
 
-const _destinations = [
-  _Destination('پروژه‌ها', Icons.folder_outlined),
-  _Destination('ویرایشگر ایجنت', Icons.smart_toy_outlined),
-  _Destination('کنسول تست', Icons.terminal_outlined),
-  _Destination('دستگاه‌ها و سینک', Icons.devices_outlined),
-  _Destination('آموزش مدل', Icons.school_outlined),
-  _Destination('تنظیمات', Icons.settings_outlined),
-];
+List<_Destination> _destinations(S s) => [
+      _Destination(s.projects, Icons.folder_outlined),
+      _Destination(s.agentEditor, Icons.smart_toy_outlined),
+      _Destination(s.testConsole, Icons.terminal_outlined),
+      _Destination(s.devicesAndSync, Icons.devices_outlined),
+      _Destination(s.training, Icons.school_outlined),
+      _Destination(s.settings, Icons.settings_outlined),
+    ];
 
 class _StudioShellState extends State<StudioShell> {
   int _index = 0;
@@ -153,6 +162,8 @@ class _StudioShellState extends State<StudioShell> {
           keyStore: widget.keyStore,
           onChanged: _reloadProviders,
           modelRegistry: _modelRegistry,
+          appSettings: widget.appSettings,
+          onAppSettingsChanged: widget.onAppSettingsChanged,
         ),
       ],
     );
@@ -165,13 +176,15 @@ class _StudioShellState extends State<StudioShell> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final destinations = _destinations(s);
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            CairnWordmark(fontSize: 20),
-            SizedBox(width: CairnSpacing.sm),
-            Text('استودیو'),
+            const CairnWordmark(fontSize: 20),
+            const SizedBox(width: CairnSpacing.sm),
+            Text(s.studio),
           ],
         ),
       ),
@@ -202,7 +215,7 @@ class _StudioShellState extends State<StudioShell> {
                             setState(() => _index = i),
                         labelType: NavigationRailLabelType.all,
                         destinations: [
-                          for (final d in _destinations)
+                          for (final d in destinations)
                             NavigationRailDestination(
                               icon: Icon(d.icon),
                               label: Text(d.label),
@@ -225,7 +238,7 @@ class _StudioShellState extends State<StudioShell> {
               selectedIndex: _index,
               onDestinationSelected: (i) => setState(() => _index = i),
               destinations: [
-                for (final d in _destinations)
+                for (final d in destinations)
                   NavigationDestination(icon: Icon(d.icon), label: d.label),
               ],
             )

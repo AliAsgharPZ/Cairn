@@ -11,9 +11,16 @@ import 'tokens.dart';
 /// - buttons radius xs (4), inputs radius sm (6) with field-border,
 ///   cards/modals radius md (8) with hairline borders;
 /// - type: headings jump to weight 800, body 16/400, labels 14/500.
-/// Typeface: Arad (Persian primary) with Inter as Latin fallback.
-ThemeData buildCairnTheme(Brightness brightness) {
+/// Typeface: Arad (Persian primary) with Inter as Latin fallback; in
+/// the English UI the roles swap (Inter primary, Arad fallback).
+ThemeData buildCairnTheme(Brightness brightness,
+    {String languageCode = 'fa'}) {
   final dark = brightness == Brightness.dark;
+  final primaryFont =
+      languageCode == 'en' ? CairnFonts.latin : CairnFonts.persian;
+  final fallbackFonts = languageCode == 'en'
+      ? const [CairnFonts.persian]
+      : CairnFonts.fallback;
 
   final canvas = dark ? CairnColors.darkCanvas : CairnColors.canvas;
   final surfaceSoft =
@@ -62,7 +69,7 @@ ThemeData buildCairnTheme(Brightness brightness) {
         fontSize: 14, fontWeight: FontWeight.w500, height: 16.8 / 14, color: ink),
     bodySmall: TextStyle(
         fontSize: 12, fontWeight: FontWeight.w400, height: 20 / 12, color: inkMuted),
-  ).apply(fontFamily: CairnFonts.persian, fontFamilyFallback: CairnFonts.fallback);
+  ).apply(fontFamily: primaryFont, fontFamilyFallback: fallbackFonts);
 
   final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(CairnRadii.xs));
@@ -73,8 +80,8 @@ ThemeData buildCairnTheme(Brightness brightness) {
     colorScheme: scheme,
     scaffoldBackgroundColor: canvas,
     textTheme: textTheme,
-    fontFamily: CairnFonts.persian,
-    fontFamilyFallback: CairnFonts.fallback,
+    fontFamily: primaryFont,
+    fontFamilyFallback: fallbackFonts,
     dividerColor: hairline,
     appBarTheme: AppBarTheme(
       backgroundColor: canvas,
