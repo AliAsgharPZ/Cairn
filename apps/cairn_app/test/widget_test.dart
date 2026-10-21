@@ -7,10 +7,20 @@ import 'package:cairn_app/ui/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// These widget tests touch real file IO (ProjectStore). They therefore run
-// the app inside tester.runAsync (real event loop) with bounded real delays
-// instead of pumpAndSettle, which never settles against real IO + the
-// loading spinner and timed out in CI (run #1, 2026-10-21).
+// These widget tests touch real file IO (ProjectStore), so the app runs
+// inside tester.runAsync (real event loop). Inside runAsync, widget
+// animations advance ONLY when frames are pumped with a duration — real
+// Future.delayed waits do not move them (that mismatch stalled the
+// create-project dialog flow in CI runs #4/#7). [_settle] therefore
+// alternates duration pumps with short real delays so both the fake
+// animation clock and real IO make progress.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 30; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
 void main() {
   testWidgets(
     'studio opens on the projects screen with the wordmark',
@@ -19,7 +29,7 @@ void main() {
       await tester.runAsync(() async {
         tmp = await Directory.systemTemp.createTemp('cairn_widget_test');
         await tester.pumpWidget(CairnApp(store: ProjectStore(tmp)));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await _settle(tester);
       });
       addTearDown(() => tmp.delete(recursive: true));
       await tester.pump();
@@ -40,22 +50,26 @@ void main() {
         tmp = await Directory.systemTemp.createTemp('cairn_widget_test');
         store = ProjectStore(tmp);
         await tester.pumpWidget(CairnApp(store: store));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await _settle(tester);
         await tester.tap(find.text('پروژهٔ جدید'));
-        await tester.pump();
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await _settle(tester);
         await tester.enterText(find.byType(TextField), 'پروژهٔ آزمایشی');
         await tester.tap(find.text('ساختن'));
-        await tester.pump();
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await _settle(tester);
       });
       addTearDown(() => tmp.delete(recursive: true));
       await tester.pump();
 
-      expect(find.text('پروژهٔ آزمایشی'), findsOneWidget);
-      // And it is really on disk:
+      // Persistence first: if this fails, the create flow itself is
+      // broken; if it passes but the UI expect below fails, it is a
+      // rendering/refresh problem. (CI runs #4/#7 failed the UI expect.)
       final listed = await tester.runAsync(() => store.list());
-      expect(listed, hasLength(1));
+      expect(listed, hasLength(1),
+          reason: 'the created project must be persisted by the store');
+      if (find.text('پروژهٔ آزمایشی').evaluate().isEmpty) {
+        debugDumpApp(); // captured in the CI log on failure
+      }
+      expect(find.text('پروژهٔ آزمایشی'), findsOneWidget);
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );
