@@ -227,6 +227,96 @@ class S {
       ? 'سطل زبالهٔ سینک: $n مورد حذف‌شده (۳۰ روز نگه داشته می‌شود).'
       : 'Sync trash: $n deleted item(s) (kept for 30 days).';
 
+  // Agent editor
+  String get listSep => fa ? '، ' : ', ';
+  String get eSkillsManager => fa ? 'مدیریت مهارت‌ها' : 'Manage skills';
+  String get eNoSkillsYet => fa ? 'هنوز مهارتی نصب نشده است.' : 'No skill is installed yet.';
+  String get eNoTools => fa ? 'بدون ابزار' : 'No tools';
+  String get eDeleteSkill => fa ? 'حذف مهارت' : 'Delete skill';
+  String get eNewSkill => fa ? 'مهارت تازه' : 'New skill';
+  String get eSkillName => fa ? 'نام مهارت' : 'Skill name';
+  String get eDescription => fa ? 'توضیح' : 'Description';
+  String get eSkillInstructions =>
+      fa ? 'دستورالعمل برای ایجنت' : 'Instructions for the agent';
+  String get eSkillToolsLabel => fa ? 'ابزارهای این مهارت:' : 'Tools of this skill:';
+  String get eClose => fa ? 'بستن' : 'Close';
+  String get eCreateSkill => fa ? 'ساختن مهارت' : 'Create skill';
+  String get eAgentIncomplete => fa ? 'ایجنت کامل نیست' : 'The agent is incomplete';
+  String get eOk => fa ? 'باشه' : 'OK';
+  String get eSaved => fa ? 'ایجنت ذخیره شد' : 'Agent saved';
+  String get eDeleteAgentTitle => fa ? 'حذف ایجنت' : 'Delete agent';
+  String eDeleteAgentBody(String name) => fa
+      ? 'ایجنت «$name» از پروژه حذف شود؟'
+      : 'Delete agent "$name" from the project?';
+  String get eCancel => fa ? 'لغو' : 'Cancel';
+  String get eDelete => fa ? 'حذف' : 'Delete';
+  String get eSeparateModelTitle =>
+      fa ? 'برای این نقش یه مدل جدا می‌خوام' : 'I want a separate model for this role';
+  String get eSeparateModelSub => fa
+      ? 'خاموش = همان مغز اصلی این کار را هم می‌کند'
+      : 'Off = the main brain handles this too';
+  String get eProvider => fa ? 'ارائه‌دهنده (Provider)' : 'Provider';
+  String get eModelId => fa ? 'شناسهٔ مدل (Model ID)' : 'Model ID';
+  String get eOpenProjectEdit => fa
+      ? 'اول از بخش «پروژه‌ها» یک پروژه را باز کن تا ایجنت‌هایش را اینجا ویرایش کنی.'
+      : 'Open a project from the Projects section first to edit its agents here.';
+  String eProjectLine(String name) => fa ? 'پروژه: $name' : 'Project: $name';
+  String get eNewAgent => fa ? 'ایجنت جدید' : 'New agent';
+  String get eAgentName => fa ? 'نام ایجنت' : 'Agent name';
+  String get eSystemPrompt => fa ? 'پرامپت سیستم (System Prompt)' : 'System Prompt';
+  String get eRolesTitle => fa ? 'نقش‌ها و مدل‌ها' : 'Roles & models';
+  String get eRolesIntro => fa
+      ? 'هر ایجنت مثل یه تیم کوچیکه (دقیقاً مثل فلوچارت): هر نقش می‌تونه مدل خودش رو داشته باشه — خارجی (مثل GPT) یا محلی روی دستگاه خودت (مثل Gemma با Ollama).'
+      : 'Every agent is a small team (exactly like the flowchart): each role can have its own model — external (like GPT) or local on your own device (like Gemma via Ollama).';
+  String get eBrainTitle => fa ? '🧠 مغز اصلی' : '🧠 Main brain';
+  String get eBrainDesc => fa
+      ? 'مدلی که فکر می‌کند، برنامه می‌ریزد و جواب نهایی را می‌سازد.'
+      : 'The model that thinks, plans and produces the final answer.';
+  String get eMaxTokens =>
+      fa ? 'سقف توکن خروجی (اختیاری)' : 'Max output tokens (optional)';
+  String get eTempDefault => fa ? 'دما: پیش‌فرض مدل' : 'Temperature: model default';
+  String eTempValue(String v) => fa ? 'دما: $v' : 'Temperature: $v';
+  String get eDefault => fa ? 'پیش‌فرض' : 'Default';
+  String get eTranslatorTitle => fa ? '🌐 مترجم و آماده‌ساز' : '🌐 Translator & preparer';
+  String get eTranslatorDesc => fa
+      ? 'اولِ کار، متن کاربر را می‌خواند، زبانش را تشخیص می‌دهد و اگر لازم بود ترجمه و شفافش می‌کند تا مغز اصلی دقیق بفهمد چی می‌خواد.'
+      : 'At the start, it reads the user\'s text, detects its language and, if needed, translates and clarifies it so the main brain understands exactly what is wanted.';
+  String get eTranslatorHint => fa
+      ? 'نکته: می‌تونی یه مدل سبکِ محلی برای ترجمه بذاری؛ مثلاً Gemma روی Ollama — کافیه تو تنظیمات، Ollama رو به‌عنوان ارائه‌دهنده داشته باشی و اسم مدل رو اینجا بنویسی.'
+      : 'Tip: you can use a light local model for translation — e.g. Gemma on Ollama. Just add Ollama as a provider in Settings and write the model name here.';
+  String get eVerifierTitle => fa ? '✅ بررسی‌کنندهٔ نتیجه' : '✅ Result verifier';
+  String get eVerifierDesc => fa
+      ? 'آخرِ کار، نتیجه را با خواستهٔ کاربر مقایسه می‌کند؛ اگر کار ناقص باشد، اجرا رد می‌شود و الکی «تمام شد» نمی‌گوید.'
+      : 'At the end, it compares the result with what the user asked; if the work is incomplete, the run is rejected instead of pretending to be done.';
+  String get eOrchestratorInfo => fa
+      ? '🧭 هماهنگ‌کننده مدل نیست! موتور خودِ Cairn است؛ برنامه‌ریزی قدم‌ها، نوبتِ حرف‌زدن مدل‌ها و صدا زدن ابزارها دست اوست.\n🛠 ابزارها و مهارت‌ها دست‌های ایجنت‌اند — پایینِ همین صفحه انتخابشان می‌کنی.'
+      : '🧭 The orchestrator is NOT a model! It is Cairn\'s own engine: planning the steps, giving each model its turn and calling the tools.\n🛠 Tools and skills are the agent\'s hands — you choose them further down this page.';
+  String get eLangMemoryTitle => fa ? 'زبان و حافظه' : 'Language & memory';
+  String get ePrimaryLang => fa ? 'زبان اصلی' : 'Primary language';
+  String get eLangAuto => fa ? 'تشخیص خودکار' : 'Auto-detect';
+  String get eLangFa => fa ? 'فارسی' : 'Persian';
+  String get eTranslateToggle =>
+      fa ? 'ترجمهٔ خودکار هنگام نیاز' : 'Translate automatically when needed';
+  String get eMemoryToggle =>
+      fa ? 'حافظهٔ مکالمه فعال باشد' : 'Conversation memory enabled';
+  String get ePolicyTitle => fa ? 'سیاست اجرا' : 'Execution policy';
+  String get eApprovalLevel => fa ? 'سطح تأیید' : 'Approval level';
+  String get eApprovalSensitive =>
+      fa ? 'فقط ابزارهای حساس بپرسد' : 'Ask only for sensitive tools';
+  String get eApprovalAll => fa ? 'همهٔ فراخوانی‌ها بپرسد' : 'Ask for every call';
+  String get eApprovalNone => fa ? 'بدون پرسش اجرا کند' : 'Run without asking';
+  String get eNetworkToggle =>
+      fa ? 'دسترسی شبکه مجاز باشد' : 'Network access allowed';
+  String get eToolsTitle => fa ? 'ابزارهای مجاز' : 'Allowed tools';
+  String get eAttachedSkills => fa ? 'مهارت‌های متصل' : 'Attached skills';
+  String get eManageSkills => fa ? 'مدیریت مهارت‌ها' : 'Manage skills';
+  String get eNoSkillsHint => fa
+      ? 'هنوز مهارتی نصب نشده است؛ از «مدیریت مهارت‌ها» بساز.'
+      : 'No skill is installed yet — create one via "Manage skills".';
+  String eToolCount(int n) => fa ? '$n ابزار' : '$n tools';
+  String get eSaveAgent => fa ? 'ذخیرهٔ ایجنت' : 'Save agent';
+  String get eDeleteAgentBtn => fa ? 'حذف ایجنت' : 'Delete agent';
+
   String get trainArchHelp => fa
       ? 'پنهان = اندازهٔ مغز (بزرگ‌تر یعنی باهوش‌تر ولی کندتر) — بافت = چند کلمهٔ قبلی رو یادش می‌مونه — دوره = چند بار کل مثال‌ها رو از اول تا آخر می‌خونه. برای شروع همون پیش‌فرض‌ها (۳۲، ۳، ۳۰) خوبه، دست نزن.'
       : 'Hidden = brain size (bigger means smarter but slower) — Context = how many previous words it remembers — Epochs = how many times it re-reads all the examples. The defaults (32, 3, 30) are a good start — leave them.';

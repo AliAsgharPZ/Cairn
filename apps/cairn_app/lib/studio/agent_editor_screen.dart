@@ -2,6 +2,7 @@ import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'project_store.dart';
 import 'provider_factory.dart';
@@ -142,6 +143,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
   /// ones (name, description, instructions, tool selection). Everything
   /// persists through [SkillStore]; the shell reloads on change.
   Future<void> _manageSkills() async {
+    final s = S.of(context);
     final name = TextEditingController();
     final description = TextEditingController();
     final instructions = TextEditingController();
@@ -149,7 +151,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('مدیریت مهارت‌ها'),
+        title: Text(s.eSkillsManager),
         content: SizedBox(
           width: 480,
           child: StatefulBuilder(
@@ -159,19 +161,19 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (widget.skills.isEmpty)
-                    const Text('هنوز مهارتی نصب نشده است.')
+                    Text(s.eNoSkillsYet)
                   else
                     for (final skill in widget.skills)
                       ListTile(
                         title: Text(skill.name),
                         subtitle: Text(
                           skill.toolIds.isEmpty
-                              ? 'بدون ابزار'
-                              : skill.toolIds.join('، '),
+                              ? s.eNoTools
+                              : skill.toolIds.join(s.listSep),
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline),
-                          tooltip: 'حذف مهارت',
+                          tooltip: s.eDeleteSkill,
                           onPressed: () async {
                             await widget.skillStore.delete(skill.id);
                             setState(() {
@@ -184,26 +186,26 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                       ),
                   const Divider(),
                   Text(
-                    'مهارت تازه',
+                    s.eNewSkill,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   TextField(
                     controller: name,
-                    decoration: const InputDecoration(labelText: 'نام مهارت'),
+                    decoration: InputDecoration(labelText: s.eSkillName),
                   ),
                   TextField(
                     controller: description,
-                    decoration: const InputDecoration(labelText: 'توضیح'),
+                    decoration: InputDecoration(labelText: s.eDescription),
                   ),
                   TextField(
                     controller: instructions,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'دستورالعمل برای ایجنت',
+                    decoration: InputDecoration(
+                      labelText: s.eSkillInstructions,
                     ),
                   ),
                   const SizedBox(height: CairnSpacing.sm),
-                  const Text('ابزارهای این مهارت:'),
+                  Text(s.eSkillToolsLabel),
                   Wrap(
                     spacing: 6,
                     children: [
@@ -229,7 +231,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('بستن'),
+            child: Text(s.eClose),
           ),
           FilledButton(
             onPressed: () async {
@@ -250,7 +252,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 }
               }
             },
-            child: const Text('ساختن مهارت'),
+            child: Text(s.eCreateSkill),
           ),
         ],
       ),
@@ -300,6 +302,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
   }
 
   Future<void> _save() async {
+    final s = S.of(context);
     final project = widget.project;
     if (project == null) return;
     final blueprint = _buildBlueprint();
@@ -308,12 +311,12 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('ایجنت کامل نیست'),
+          title: Text(s.eAgentIncomplete),
           content: Text(issues.join('\n')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('باشه'),
+              child: Text(s.eOk),
             ),
           ],
         ),
@@ -334,26 +337,27 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     widget.onProjectChanged?.call();
     if (mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('ایجنت ذخیره شد')));
+          .showSnackBar(SnackBar(content: Text(s.eSaved)));
     }
   }
 
   Future<void> _delete() async {
+    final s = S.of(context);
     final project = widget.project;
     if (project == null || _editingId == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('حذف ایجنت'),
-        content: Text('ایجنت «${_name.text}» از پروژه حذف شود؟'),
+        title: Text(s.eDeleteAgentTitle),
+        content: Text(s.eDeleteAgentBody(_name.text)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('لغو'),
+            child: Text(s.eCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: Text(s.eDelete),
           ),
         ],
       ),
@@ -380,6 +384,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
     String? hint,
   }) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -388,16 +393,16 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
         Text(explanation, style: theme.textTheme.bodySmall),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('برای این نقش یه مدل جدا می‌خوام'),
-          subtitle: const Text('خاموش = همان مغز اصلی این کار را هم می‌کند'),
+          title: Text(s.eSeparateModelTitle),
+          subtitle: Text(s.eSeparateModelSub),
           value: separate,
           onChanged: onSeparate,
         ),
         if (separate) ...[
           DropdownButtonFormField<String>(
             initialValue: providerId,
-            decoration: const InputDecoration(
-              labelText: 'ارائه‌دهنده (Provider)',
+            decoration: InputDecoration(
+              labelText: s.eProvider,
             ),
             items: [
               for (final id in providerIds)
@@ -413,8 +418,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
           const SizedBox(height: CairnSpacing.sm),
           TextField(
             controller: model,
-            decoration: const InputDecoration(
-              labelText: 'شناسهٔ مدل (Model ID)',
+            decoration: InputDecoration(
+              labelText: s.eModelId,
             ),
           ),
           if (hint != null) ...[
@@ -428,14 +433,13 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final project = widget.project;
     if (project == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(CairnSpacing.xxl),
-          child: Text(
-            'اول از بخش «پروژه‌ها» یک پروژه را باز کن تا ایجنت‌هایش را اینجا ویرایش کنی.',
-          ),
+          padding: const EdgeInsets.all(CairnSpacing.xxl),
+          child: Text(s.eOpenProjectEdit),
         ),
       );
     }
@@ -461,7 +465,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                'پروژه: ${project.name}',
+                s.eProjectLine(project.name),
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(width: CairnSpacing.sm),
@@ -473,7 +477,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 ),
               ActionChip(
                 avatar: const Icon(Icons.add, size: 18),
-                label: const Text('ایجنت جدید'),
+                label: Text(s.eNewAgent),
                 onPressed: _newAgent,
               ),
             ],
@@ -488,42 +492,40 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
               children: [
                 TextField(
                   controller: _name,
-                  decoration: const InputDecoration(labelText: 'نام ایجنت'),
+                  decoration: InputDecoration(labelText: s.eAgentName),
                 ),
                 const SizedBox(height: CairnSpacing.sm),
                 TextField(
                   controller: _description,
-                  decoration: const InputDecoration(labelText: 'توضیح'),
+                  decoration: InputDecoration(labelText: s.eDescription),
                 ),
                 const SizedBox(height: CairnSpacing.sm),
                 TextField(
                   controller: _systemPrompt,
                   minLines: 3,
                   maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'پرامپت سیستم (System Prompt)',
+                  decoration: InputDecoration(
+                    labelText: s.eSystemPrompt,
                   ),
                 ),
                 const SizedBox(height: CairnSpacing.lg),
-                Text('نقش‌ها و مدل‌ها', style: theme.textTheme.titleMedium),
+                Text(s.eRolesTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: CairnSpacing.xs),
                 Text(
-                  'هر ایجنت مثل یه تیم کوچیکه (دقیقاً مثل فلوچارت): هر نقش '
-                  'می‌تونه مدل خودش رو داشته باشه — خارجی (مثل GPT) یا '
-                  'محلی روی دستگاه خودت (مثل Gemma با Ollama).',
+                  s.eRolesIntro,
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: CairnSpacing.sm),
-                Text('🧠 مغز اصلی', style: theme.textTheme.titleSmall),
+                Text(s.eBrainTitle, style: theme.textTheme.titleSmall),
                 Text(
-                  'مدلی که فکر می‌کند، برنامه می‌ریزد و جواب نهایی را می‌سازد.',
+                  s.eBrainDesc,
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: CairnSpacing.xs),
                 DropdownButtonFormField<String>(
                   initialValue: _providerId,
-                  decoration: const InputDecoration(
-                    labelText: 'ارائه‌دهنده (Provider)',
+                  decoration: InputDecoration(
+                    labelText: s.eProvider,
                   ),
                   items: [
                     for (final id in providerIds)
@@ -550,8 +552,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 const SizedBox(height: CairnSpacing.sm),
                 TextField(
                   controller: _modelId,
-                  decoration: const InputDecoration(
-                    labelText: 'شناسهٔ مدل (Model ID)',
+                  decoration: InputDecoration(
+                    labelText: s.eModelId,
                   ),
                 ),
                 const SizedBox(height: CairnSpacing.sm),
@@ -561,8 +563,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                       child: TextField(
                         controller: _maxTokens,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'سقف توکن خروجی (اختیاری)',
+                        decoration: InputDecoration(
+                          labelText: s.eMaxTokens,
                         ),
                       ),
                     ),
@@ -574,8 +576,8 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                         children: [
                           Text(
                             _temperature == null
-                                ? 'دما: پیش‌فرض مدل'
-                                : 'دما: ${_temperature!.toStringAsFixed(1)}',
+                                ? s.eTempDefault
+                                : s.eTempValue(_temperature!.toStringAsFixed(1)),
                             style: theme.textTheme.labelLarge,
                           ),
                           Slider(
@@ -590,17 +592,15 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                     ),
                     TextButton(
                       onPressed: () => setState(() => _temperature = null),
-                      child: const Text('پیش‌فرض'),
+                      child: Text(s.eDefault),
                     ),
                   ],
                 ),
                 const SizedBox(height: CairnSpacing.lg),
                 _rolePicker(
-                  title: '🌐 مترجم و آماده‌ساز',
+                  title: s.eTranslatorTitle,
                   explanation:
-                      'اولِ کار، متن کاربر را می‌خواند، زبانش را '
-                      'تشخیص می‌دهد و اگر لازم بود ترجمه و شفافش می‌کند تا '
-                      'مغز اصلی دقیق بفهمد چی می‌خواد.',
+                      s.eTranslatorDesc,
                   separate: _translatorSeparate,
                   onSeparate: (v) => setState(() => _translatorSeparate = v),
                   providerId: _translatorProviderId,
@@ -608,18 +608,13 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                   model: _translatorModelId,
                   providerIds: providerIds,
                   hint:
-                      'نکته: می‌تونی یه مدل سبکِ محلی برای ترجمه بذاری؛ '
-                      'مثلاً Gemma روی Ollama — کافیه تو تنظیمات، Ollama '
-                      'رو به‌عنوان ارائه‌دهنده داشته باشی و اسم مدل رو '
-                      'اینجا بنویسی.',
+                      s.eTranslatorHint,
                 ),
                 const SizedBox(height: CairnSpacing.lg),
                 _rolePicker(
-                  title: '✅ بررسی‌کنندهٔ نتیجه',
+                  title: s.eVerifierTitle,
                   explanation:
-                      'آخرِ کار، نتیجه را با خواستهٔ کاربر مقایسه '
-                      'می‌کند؛ اگر کار ناقص باشد، اجرا رد می‌شود و الکی '
-                      '«تمام شد» نمی‌گوید.',
+                      s.eVerifierDesc,
                   separate: _verifierSeparate,
                   onSeparate: (v) => setState(() => _verifierSeparate = v),
                   providerId: _verifierProviderId,
@@ -636,59 +631,55 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                     borderRadius: BorderRadius.circular(CairnRadii.md),
                   ),
                   child: Text(
-                    '🧭 هماهنگ‌کننده مدل نیست! موتور خودِ Cairn است؛ '
-                    'برنامه‌ریزی قدم‌ها، نوبتِ حرف‌زدن مدل‌ها و صدا زدن '
-                    'ابزارها دست اوست.\n'
-                    '🛠 ابزارها و مهارت‌ها دست‌های ایجنت‌اند — پایینِ همین '
-                    'صفحه انتخابشان می‌کنی.',
+                    s.eOrchestratorInfo,
                     style: theme.textTheme.bodySmall,
                   ),
                 ),
                 const SizedBox(height: CairnSpacing.lg),
-                Text('زبان و حافظه', style: theme.textTheme.titleMedium),
+                Text(s.eLangMemoryTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: CairnSpacing.xs),
                 DropdownButtonFormField<String>(
                   initialValue: _primaryLanguage,
-                  decoration: const InputDecoration(labelText: 'زبان اصلی'),
-                  items: const [
+                  decoration: InputDecoration(labelText: s.ePrimaryLang),
+                  items: [
                     DropdownMenuItem(
                       value: 'auto',
-                      child: Text('تشخیص خودکار'),
+                      child: Text(s.eLangAuto),
                     ),
-                    DropdownMenuItem(value: 'fa', child: Text('فارسی')),
+                    DropdownMenuItem(value: 'fa', child: Text(s.eLangFa)),
                     DropdownMenuItem(value: 'en', child: Text('English')),
                   ],
                   onChanged: (v) =>
                       setState(() => _primaryLanguage = v ?? 'auto'),
                 ),
                 SwitchListTile(
-                  title: const Text('ترجمهٔ خودکار هنگام نیاز'),
+                  title: Text(s.eTranslateToggle),
                   value: _translate,
                   onChanged: (v) => setState(() => _translate = v),
                 ),
                 SwitchListTile(
-                  title: const Text('حافظهٔ مکالمه فعال باشد'),
+                  title: Text(s.eMemoryToggle),
                   value: _memoryEnabled,
                   onChanged: (v) => setState(() => _memoryEnabled = v),
                 ),
                 const SizedBox(height: CairnSpacing.lg),
-                Text('سیاست اجرا', style: theme.textTheme.titleMedium),
+                Text(s.ePolicyTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: CairnSpacing.xs),
                 DropdownButtonFormField<ApprovalLevel>(
                   initialValue: _approval,
-                  decoration: const InputDecoration(labelText: 'سطح تأیید'),
-                  items: const [
+                  decoration: InputDecoration(labelText: s.eApprovalLevel),
+                  items: [
                     DropdownMenuItem(
                       value: ApprovalLevel.sensitiveOnly,
-                      child: Text('فقط ابزارهای حساس بپرسد'),
+                      child: Text(s.eApprovalSensitive),
                     ),
                     DropdownMenuItem(
                       value: ApprovalLevel.all,
-                      child: Text('همهٔ فراخوانی‌ها بپرسد'),
+                      child: Text(s.eApprovalAll),
                     ),
                     DropdownMenuItem(
                       value: ApprovalLevel.none,
-                      child: Text('بدون پرسش اجرا کند'),
+                      child: Text(s.eApprovalNone),
                     ),
                   ],
                   onChanged: (v) => setState(
@@ -696,12 +687,12 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                   ),
                 ),
                 SwitchListTile(
-                  title: const Text('دسترسی شبکه مجاز باشد'),
+                  title: Text(s.eNetworkToggle),
                   value: _allowNetwork,
                   onChanged: (v) => setState(() => _allowNetwork = v),
                 ),
                 const SizedBox(height: CairnSpacing.lg),
-                Text('ابزارهای مجاز', style: theme.textTheme.titleMedium),
+                Text(s.eToolsTitle, style: theme.textTheme.titleMedium),
                 const SizedBox(height: CairnSpacing.xs),
                 for (final tool in widget.registry.all)
                   CheckboxListTile(
@@ -722,27 +713,25 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                 const SizedBox(height: CairnSpacing.lg),
                 Row(
                   children: [
-                    Text('مهارت‌های متصل', style: theme.textTheme.titleMedium),
+                    Text(s.eAttachedSkills, style: theme.textTheme.titleMedium),
                     const Spacer(),
                     OutlinedButton.icon(
                       onPressed: _manageSkills,
                       icon: const Icon(Icons.extension_outlined),
-                      label: const Text('مدیریت مهارت‌ها'),
+                      label: Text(s.eManageSkills),
                     ),
                   ],
                 ),
                 const SizedBox(height: CairnSpacing.xs),
                 if (widget.skills.isEmpty)
-                  const Text(
-                    'هنوز مهارتی نصب نشده است؛ از «مدیریت مهارت‌ها» بساز.',
-                  )
+                  Text(s.eNoSkillsHint)
                 else
                   for (final skill in widget.skills)
                     CheckboxListTile(
                       title: Text(skill.name),
                       subtitle: Text(
                         skill.description.isEmpty
-                            ? '${skill.toolIds.length} ابزار'
+                            ? s.eToolCount(skill.toolIds.length)
                             : skill.description,
                       ),
                       value: _skillIds.contains(skill.id),
@@ -760,14 +749,14 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                     FilledButton.icon(
                       onPressed: _save,
                       icon: const Icon(Icons.save_outlined),
-                      label: const Text('ذخیرهٔ ایجنت'),
+                      label: Text(s.eSaveAgent),
                     ),
                     const SizedBox(width: CairnSpacing.sm),
                     if (_editingId != null)
                       OutlinedButton.icon(
                         onPressed: _delete,
                         icon: const Icon(Icons.delete_outline),
-                        label: const Text('حذف ایجنت'),
+                        label: Text(s.eDeleteAgentBtn),
                       ),
                   ],
                 ),
