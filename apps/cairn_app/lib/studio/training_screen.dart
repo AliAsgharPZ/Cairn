@@ -513,7 +513,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     return ListView(
       padding: const EdgeInsets.all(CairnSpacing.lg),
       children: [
-        Text('آموزش مدل', style: theme.textTheme.headlineSmall),
+        Text(s.training, style: theme.textTheme.headlineSmall),
         const SizedBox(height: CairnSpacing.xs),
         Text(s.trainIntro, style: theme.textTheme.bodySmall),
         const SizedBox(height: CairnSpacing.sm),
@@ -542,11 +542,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         ],
         const SizedBox(height: CairnSpacing.lg),
-        Text('۱) نام و قابلیت‌های هدف', style: theme.textTheme.titleMedium),
+        Text(s.tNameCapsTitle, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.sm),
         TextField(
           controller: _nameController,
-          decoration: const InputDecoration(labelText: 'نام مدل'),
+          decoration: InputDecoration(labelText: s.tModelName),
         ),
         const SizedBox(height: CairnSpacing.sm),
         Wrap(
@@ -567,25 +567,25 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ],
         ),
         const SizedBox(height: CairnSpacing.sm),
-        Text('این مدل مال کیه؟ (هدف آموزش)', style: theme.textTheme.titleSmall),
+        Text(s.tTargetTitle, style: theme.textTheme.titleSmall),
         const SizedBox(height: CairnSpacing.xs),
         DropdownButton<String?>(
           value: _targetKey,
           isExpanded: true,
           items: [
-            const DropdownMenuItem<String?>(
+            DropdownMenuItem<String?>(
               value: null,
-              child: Text('مدل مستقل — برای همهٔ ایجنت‌ها'),
+              child: Text(s.tStandalone),
             ),
             for (final p in _projects) ...[
               DropdownMenuItem<String?>(
                 value: 'output:${p.id}',
-                child: Text('خروجیِ پروژهٔ «${p.name}» — مدل مال این پروژه'),
+                child: Text(s.tOutputOf(p.name)),
               ),
               for (final a in p.agents)
                 DropdownMenuItem<String?>(
                   value: '${p.id}/${a.id}',
-                  child: Text('مغزِ ایجنت «${a.name}» — پروژهٔ «${p.name}»'),
+                  child: Text(s.tBrainOf(a.name, p.name)),
                 ),
             ],
           ],
@@ -606,7 +606,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         ),
         const SizedBox(height: CairnSpacing.lg),
         Text(
-          '۲) دادهٔ خام (هر خط یک نمونه)',
+          s.tDataTitle,
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: CairnSpacing.sm),
@@ -614,8 +614,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
           controller: _dataController,
           minLines: 6,
           maxLines: 12,
-          decoration: const InputDecoration(
-            hintText: 'متن‌های آموزشی را اینجا بچسبان…',
+          decoration: InputDecoration(
+            hintText: s.tDataHint,
             border: OutlineInputBorder(),
           ),
         ),
@@ -627,7 +627,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
             FilledButton.icon(
               onPressed: _busy ? null : _buildDataset,
               icon: const Icon(Icons.cleaning_services_outlined),
-              label: const Text('ساخت دیتاست و توکن‌ساز'),
+              label: Text(s.tBuildDataset),
             ),
             TextButton.icon(
               onPressed: _busy ? null : _fillSample,
@@ -652,7 +652,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         ],
         const SizedBox(height: CairnSpacing.lg),
-        Text('۳) معماری و آموزش', style: theme.textTheme.titleMedium),
+        Text(s.tArchTitle, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.sm),
         Wrap(
           spacing: 16,
@@ -661,29 +661,29 @@ class _TrainingScreenState extends State<TrainingScreen> {
           children: [
             DropdownButton<int>(
               value: _hidden,
-              items: const [
-                DropdownMenuItem(value: 16, child: Text('پنهان ۱۶')),
-                DropdownMenuItem(value: 32, child: Text('پنهان ۳۲')),
-                DropdownMenuItem(value: 64, child: Text('پنهان ۶۴')),
+              items: [
+                DropdownMenuItem(value: 16, child: Text(s.tHidden(16))),
+                DropdownMenuItem(value: 32, child: Text(s.tHidden(32))),
+                DropdownMenuItem(value: 64, child: Text(s.tHidden(64))),
               ],
               onChanged: (v) => setState(() => _hidden = v ?? 32),
             ),
             DropdownButton<int>(
               value: _context,
-              items: const [
-                DropdownMenuItem(value: 2, child: Text('بافت ۲')),
-                DropdownMenuItem(value: 3, child: Text('بافت ۳')),
-                DropdownMenuItem(value: 4, child: Text('بافت ۴')),
-                DropdownMenuItem(value: 6, child: Text('بافت ۶')),
+              items: [
+                DropdownMenuItem(value: 2, child: Text(s.tContext(2))),
+                DropdownMenuItem(value: 3, child: Text(s.tContext(3))),
+                DropdownMenuItem(value: 4, child: Text(s.tContext(4))),
+                DropdownMenuItem(value: 6, child: Text(s.tContext(6))),
               ],
               onChanged: (v) => setState(() => _context = v ?? 3),
             ),
             DropdownButton<int>(
               value: _epochs,
-              items: const [
-                DropdownMenuItem(value: 10, child: Text('۱۰ دوره')),
-                DropdownMenuItem(value: 30, child: Text('۳۰ دوره')),
-                DropdownMenuItem(value: 60, child: Text('۶۰ دوره')),
+              items: [
+                DropdownMenuItem(value: 10, child: Text(s.tEpochs(10))),
+                DropdownMenuItem(value: 30, child: Text(s.tEpochs(30))),
+                DropdownMenuItem(value: 60, child: Text(s.tEpochs(60))),
               ],
               onChanged: (v) => setState(() => _epochs = v ?? 30),
             ),
@@ -702,17 +702,17 @@ class _TrainingScreenState extends State<TrainingScreen> {
             FilledButton.icon(
               onPressed: _busy ? null : _train,
               icon: const Icon(Icons.play_arrow),
-              label: const Text('شروع آموزش'),
+              label: Text(s.tStart),
             ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _evaluate,
               icon: const Icon(Icons.analytics_outlined),
-              label: const Text('ارزیابی (پرپلکسیتی)'),
+              label: Text(s.tEvaluate),
             ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _registerCurrent,
               icon: const Icon(Icons.save_outlined),
-              label: const Text('ثبت در رجیستری'),
+              label: Text(s.tRegister),
             ),
           ],
         ),
@@ -742,7 +742,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         ],
         const SizedBox(height: CairnSpacing.lg),
         Text(
-          '۴) فاین‌تیون دستوری (هر خط یک JSON)',
+          s.tFinetuneTitle,
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: CairnSpacing.sm),
@@ -761,14 +761,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
           child: OutlinedButton.icon(
             onPressed: _busy ? null : _fineTune,
             icon: const Icon(Icons.tune),
-            label: const Text('فاین‌تیون و ثبت مدل دستوری'),
+            label: Text(s.tFinetuneBtn),
           ),
         ),
         const SizedBox(height: CairnSpacing.lg),
-        Text('۵) رجیستری مدل‌ها', style: theme.textTheme.titleMedium),
+        Text(s.tRegistryTitle, style: theme.textTheme.titleMedium),
         const SizedBox(height: CairnSpacing.sm),
         if (_models.isEmpty)
-          Text('هنوز مدلی ثبت نشده است.', style: theme.textTheme.bodySmall),
+          Text(s.tNoModels, style: theme.textTheme.bodySmall),
         for (final model in _models)
           Card(
             child: ListTile(
@@ -808,7 +808,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         const SizedBox(height: CairnSpacing.lg),
         Text(
-          '۶) تولید نمونه با مدل انتخاب‌شده',
+          s.tPlaygroundTitle,
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: CairnSpacing.sm),
@@ -817,14 +817,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
             Expanded(
               child: TextField(
                 controller: _playController,
-                decoration: const InputDecoration(
-                  labelText: 'متن آغازین',
+                decoration: InputDecoration(
+                  labelText: s.tSeedLabel,
                   border: OutlineInputBorder(),
                 ),
               ),
             ),
             const SizedBox(width: CairnSpacing.sm),
-            FilledButton(onPressed: _playground, child: const Text('تولید')),
+            FilledButton(onPressed: _playground, child: Text(s.tGenerate)),
           ],
         ),
         if (_playOutput.isNotEmpty) ...[

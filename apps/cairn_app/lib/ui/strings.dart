@@ -317,6 +317,54 @@ class S {
   String get eSaveAgent => fa ? 'ذخیرهٔ ایجنت' : 'Save agent';
   String get eDeleteAgentBtn => fa ? 'حذف ایجنت' : 'Delete agent';
 
+  // Training screen labels
+  String _d(int n) => fa
+      ? '$n'.replaceAllMapped(
+          RegExp(r'[0-9]'),
+          (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m[0]!)],
+        )
+      : '$n';
+  String get tNameCapsTitle =>
+      fa ? '۱) نام و قابلیت‌های هدف' : '1) Name & target capabilities';
+  String get tModelName => fa ? 'نام مدل' : 'Model name';
+  String get tTargetTitle =>
+      fa ? 'این مدل مال کیه؟ (هدف آموزش)' : 'Whose is this model? (training target)';
+  String get tStandalone =>
+      fa ? 'مدل مستقل — برای همهٔ ایجنت‌ها' : 'Standalone model — for all agents';
+  String tOutputOf(String name) => fa
+      ? 'خروجیِ پروژهٔ «$name» — مدل مال این پروژه'
+      : 'Output of project "$name" — the model belongs to this project';
+  String tBrainOf(String agent, String project) => fa
+      ? 'مغزِ ایجنت «$agent» — پروژهٔ «$project»'
+      : 'Brain of agent "$agent" — project "$project"';
+  String get tDataTitle =>
+      fa ? '۲) دادهٔ خام (هر خط یک نمونه)' : '2) Raw data (one sample per line)';
+  String get tDataHint =>
+      fa ? 'متن‌های آموزشی را اینجا بچسبان…' : 'Paste the training texts here…';
+  String get tBuildDataset =>
+      fa ? 'ساخت دیتاست و توکن‌ساز' : 'Build dataset & tokenizer';
+  String get tArchTitle => fa ? '۳) معماری و آموزش' : '3) Architecture & training';
+  String tHidden(int n) => fa ? 'پنهان ${_d(n)}' : 'Hidden $n';
+  String tContext(int n) => fa ? 'بافت ${_d(n)}' : 'Context $n';
+  String tEpochs(int n) => fa ? '${_d(n)} دوره' : '$n epochs';
+  String get tStart => fa ? 'شروع آموزش' : 'Start training';
+  String get tEvaluate => fa ? 'ارزیابی (پرپلکسیتی)' : 'Evaluate (perplexity)';
+  String get tRegister => fa ? 'ثبت در رجیستری' : 'Register in registry';
+  String get tFinetuneTitle => fa
+      ? '۴) فاین‌تیون دستوری (هر خط یک JSON)'
+      : '4) Instruction fine-tune (one JSON per line)';
+  String get tFinetuneBtn => fa
+      ? 'فاین‌تیون و ثبت مدل دستوری'
+      : 'Fine-tune & register instruction model';
+  String get tRegistryTitle => fa ? '۵) رجیستری مدل‌ها' : '5) Model registry';
+  String get tNoModels =>
+      fa ? 'هنوز مدلی ثبت نشده است.' : 'No model is registered yet.';
+  String get tPlaygroundTitle => fa
+      ? '۶) تولید نمونه با مدل انتخاب‌شده'
+      : '6) Generate with the selected model';
+  String get tSeedLabel => fa ? 'متن آغازین' : 'Seed text';
+  String get tGenerate => fa ? 'تولید' : 'Generate';
+
   String get trainArchHelp => fa
       ? 'پنهان = اندازهٔ مغز (بزرگ‌تر یعنی باهوش‌تر ولی کندتر) — بافت = چند کلمهٔ قبلی رو یادش می‌مونه — دوره = چند بار کل مثال‌ها رو از اول تا آخر می‌خونه. برای شروع همون پیش‌فرض‌ها (۳۲، ۳، ۳۰) خوبه، دست نزن.'
       : 'Hidden = brain size (bigger means smarter but slower) — Context = how many previous words it remembers — Epochs = how many times it re-reads all the examples. The defaults (32, 3, 30) are a good start — leave them.';
