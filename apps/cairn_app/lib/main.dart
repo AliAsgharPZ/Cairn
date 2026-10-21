@@ -10,6 +10,7 @@ import 'studio/project_store.dart';
 import 'studio/provider_settings.dart';
 import 'studio/skill_store.dart';
 import 'studio/studio_shell.dart';
+import 'studio/tool_host_boot.dart';
 import 'ui/cairn_theme.dart';
 
 /// The Cairn studio app — the identical full studio on Android and Windows.
@@ -22,6 +23,7 @@ class CairnApp extends StatelessWidget {
     ApiKeyStore? keyStore,
     SkillStore? skillStore,
     SeedStore? seedStore,
+    this.toolHostStatus,
   })  : registry = registry ??
             ToolRegistry([
               ...BuiltInTools.all(),
@@ -45,6 +47,10 @@ class CairnApp extends StatelessWidget {
   final SkillStore skillStore;
   final SeedStore seedStore;
 
+  /// Windows Tool Host boot outcome (null on non-Windows / in tests);
+  /// shown as a banner in the shell so the mode is visible.
+  final String? toolHostStatus;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -59,6 +65,7 @@ class CairnApp extends StatelessWidget {
         keyStore: keyStore,
         skillStore: skillStore,
         seedStore: seedStore,
+        toolHostStatus: toolHostStatus,
       ),
     );
   }
@@ -69,11 +76,25 @@ Future<void> main() async {
   final docs = await getApplicationDocumentsDirectory();
   final cairnDir = Directory('${docs.path}/cairn');
   // The agent workspace: the confined root of the platform tools.
-  await Directory('${cairnDir.path}/workspace').create(recursive: true);
+  final workspace = Directory('${cairnDir.path}/workspace');
+  await workspace.create(recursive: true);
+  // Windows: platform tools run in the separate Tool Host process
+  // (M5). Boot happens before runApp because the registry is built
+  // synchronously; any failure falls back to local tools and the
+  // status banner says so.
+  ToolRegistry? registry;
+  String? toolHostStatus;
+  if (Platform.isWindows) {
+    final boot = await bootWindowsToolHost(workspaceRoot: workspace);
+    registry = boot.registry;
+    toolHostStatus = boot.status;
+  }
   runApp(CairnApp(
     store: ProjectStore(cairnDir),
+    registry: registry,
     settingsStore: ProviderSettingsStore(cairnDir),
     keyStore: SecureApiKeyStore(),
     seedStore: SecureSeedStore(),
+    toolHostStatus: toolHostStatus,
   ));
 }

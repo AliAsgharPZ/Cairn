@@ -61,6 +61,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  cairn_toolhost:
+    dependency: "direct main"
+    description:
+      path: "../../packages/cairn_toolhost"
+      relative: true
+    source: path
+    version: "0.1.0"
   cairn_tools:
     dependency: "direct main"
     description:

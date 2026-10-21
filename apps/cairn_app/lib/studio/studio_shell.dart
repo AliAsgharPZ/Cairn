@@ -32,6 +32,7 @@ class StudioShell extends StatefulWidget {
     required this.keyStore,
     required this.skillStore,
     required this.seedStore,
+    this.toolHostStatus,
   });
 
   final ProjectStore store;
@@ -40,6 +41,10 @@ class StudioShell extends StatefulWidget {
   final ApiKeyStore keyStore;
   final SkillStore skillStore;
   final SeedStore seedStore;
+
+  /// Windows Tool Host boot status (null elsewhere); rendered as a
+  /// slim banner so the execution mode is always visible.
+  final String? toolHostStatus;
 
   @override
   State<StudioShell> createState() => _StudioShellState();
@@ -170,30 +175,50 @@ class _StudioShellState extends State<StudioShell> {
           ],
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 720) {
-            return Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: _index,
-                  onDestinationSelected: (i) => setState(() => _index = i),
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    for (final d in _destinations)
-                      NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        label: Text(d.label),
+      body: Column(
+        children: [
+          if (widget.toolHostStatus != null)
+            Container(
+              width: double.infinity,
+              color: CairnColors.canvasTint,
+              padding: const EdgeInsets.symmetric(
+                horizontal: CairnSpacing.md,
+                vertical: CairnSpacing.xs,
+              ),
+              child: Text(
+                widget.toolHostStatus!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= 720) {
+                  return Row(
+                    children: [
+                      NavigationRail(
+                        selectedIndex: _index,
+                        onDestinationSelected: (i) =>
+                            setState(() => _index = i),
+                        labelType: NavigationRailLabelType.all,
+                        destinations: [
+                          for (final d in _destinations)
+                            NavigationRailDestination(
+                              icon: Icon(d.icon),
+                              label: Text(d.label),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: _body()),
-              ],
-            );
-          }
-          return _body();
-        },
+                      const VerticalDivider(width: 1),
+                      Expanded(child: _body()),
+                    ],
+                  );
+                }
+                return _body();
+              },
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: MediaQuery.sizeOf(context).width < 720
           ? NavigationBar(
