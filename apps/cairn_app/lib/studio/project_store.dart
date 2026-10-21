@@ -86,4 +86,45 @@ class ProjectStore {
     await file.delete();
     return true;
   }
+
+  Directory get _exportsDir => Directory('${baseDir.path}/exports');
+
+  /// Exports [project] as a portable `.cairn.zip` into the exports folder
+  /// and returns the file (share/transfer it to the other device).
+  Future<File> exportProject(AgentProject project) =>
+      ProjectArchive.exportProject(project, _exportsDir);
+
+  /// All exported archives currently in the exports folder, newest first —
+  /// the import dialog lists these.
+  Future<List<File>> listExports() async {
+    if (!await _exportsDir.exists()) return const [];
+    final files = <File>[];
+    await for (final entity in _exportsDir.list()) {
+      if (entity is File &&
+          entity.path.endsWith(ProjectArchive.fileExtension)) {
+        files.add(entity);
+      }
+    }
+    files.sort((a, b) => b.path.compareTo(a.path));
+    return files;
+  }
+
+  /// Imports an archive file (validated by [ProjectArchive]) and persists
+  /// it. If a project with the same id already exists, the import is kept
+  /// as a copy with a fresh id — importing never silently overwrites.
+  Future<AgentProject> importArchive(File zipFile) async {
+    var project = await ProjectArchive.importProject(zipFile);
+    if (await load(project.id) != null) {
+      project = AgentProject(
+        name: project.name,
+        description: project.description,
+        agents: List.of(project.agents),
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        schemaVersion: project.schemaVersion,
+      );
+    }
+    await save(project);
+    return project;
+  }
 }
