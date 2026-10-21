@@ -1,0 +1,22 @@
+name: cairn_training
+description: >-
+  Cairn's model-training pathway (M9, Flow 2): dataset building and
+  cleaning, deterministic splits, a Unicode word-level tokenizer,
+  transformer model specs with honest parameter estimates, a real
+  (small) neural language model trained by gradient descent in pure
+  Dart, checkpoints, perplexity evaluation, instruction fine-tuning
+  and a model registry. Scope is honest: small models train in-app;
+  the same artifacts export for heavier external training.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  cairn_core:
+    path: ../cairn_core
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

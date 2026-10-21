@@ -18,7 +18,7 @@ jobs:
           channel: stable
       - name: Analyze + test pure-Dart packages
         run: |
-          for pkg in cairn_core cairn_models cairn_runtime cairn_tools cairn_toolhost cairn_sync; do
+          for pkg in cairn_core cairn_models cairn_runtime cairn_tools cairn_toolhost cairn_sync cairn_training; do
             echo "=== $pkg ==="
             (cd packages/$pkg && dart pub get && dart analyze && dart test)
           done

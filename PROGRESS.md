@@ -203,8 +203,25 @@ Last updated: 2026-10-21
   RemoteTools into the test console's registry for live peer routing
   during agent runs. Optional self-hosted relay stays deferred by the
   approved design (LAN + Tailscale cover v1).
-## M9 — Fine-tune pathway + security hardening ⬜
-## M9 — Model-creation & training pathway + security hardening ⬜
+## M9 — Model-creation & training pathway + security hardening 🔵
+
+- ✅ Training core (`packages/cairn_training`, pure Dart, **13/13
+  tests**): dataset builder (cleaning with honest drop counts —
+  empty/short/duplicate — and deterministic seeded splits); a
+  Unicode word-level tokenizer (Persian/Arabic-safe; <unk> fallback,
+  documented as NOT BPE); ModelSpec with a documented transformer
+  parameter-estimate formula for export specs; **NeuralLanguageModel
+  — a real NNLM trained by hand-written backpropagation/SGD in Dart**
+  (tests prove loss and perplexity genuinely fall on a toy corpus,
+  checkpoint round-trips reproduce identical greedy generations, and
+  instruction fine-tuning is continued training on formatted
+  examples); ModelRegistryStore (one JSON per model: metadata +
+  metrics + full checkpoint). The model reports its TRUE parameter
+  count (its own weight arrays), never the transformer estimate.
+- ⬜ App: the Training screen (capabilities → data → clean report →
+  splits → tokenizer → spec → train with live loss → evaluate →
+  fine-tune → registry) and serving a registered model as a Cairn
+  provider in the console; security-hardening pass.
 
 Scope = owner's Flow 2 (`docs/flowcharts.md`): capability definition →
 data collection/generation → cleaning → dataset splits → tokenization →
