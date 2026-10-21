@@ -5,6 +5,7 @@ import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'project_store.dart';
 import 'provider_settings.dart';
@@ -489,21 +490,47 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 
   @override
+  /// The ready sample dataset (the same one the in-chat tutorial
+  /// uses): ten simple greeting/helper sentences, one per line.
+  void _fillSample() {
+    _dataController.text = 'سلام خوبی\n'
+        'سلام من اینجام\n'
+        'تو کی هستی\n'
+        'من یه دستیار مهربونم\n'
+        'اسمت چیه\n'
+        'اسم من کایرنه\n'
+        'خداحافظ فردا می بینمت\n'
+        'ممنون از کمکت\n'
+        'خواهش می کنم دوست من\n'
+        'امروز روز خوبیه';
+    _say('مثال آماده رو گذاشتم — حالا دکمهٔ «ساخت دیتاست و توکن‌ساز» رو بزن.');
+  }
+
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = S.of(context);
     final dataset = _dataset;
     return ListView(
       padding: const EdgeInsets.all(CairnSpacing.lg),
       children: [
         Text('آموزش مدل', style: theme.textTheme.headlineSmall),
         const SizedBox(height: CairnSpacing.xs),
-        Text(
-          'مسیر فلوچارت ساخت مدل: قابلیت‌ها ← داده و پاک‌سازی ← تقسیم '
-          'دیتاست ← توکن‌سازی ← معماری ← آموزش واقعی ← ارزیابی ← '
-          'فاین‌تیون ← رجیستری ← استفاده به‌عنوان پرووایدر.\n'
-          'مقیاس صادقانه: آموزندهٔ درون‌برنامه‌ای مدل‌های کوچکِ کلمه‌ای '
-          'می‌سازد (هزاران تا چند میلیون پارامتر) — مدل زبانی بزرگ نیست.',
-          style: theme.textTheme.bodySmall,
+        Text(s.trainIntro, style: theme.textTheme.bodySmall),
+        const SizedBox(height: CairnSpacing.sm),
+        ExpansionTile(
+          leading: const Icon(Icons.lightbulb_outline),
+          title: Text(s.trainGuideTitle),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CairnSpacing.md,
+                0,
+                CairnSpacing.md,
+                CairnSpacing.md,
+              ),
+              child: Text(s.trainGuideBody),
+            ),
+          ],
         ),
         if (_status.isNotEmpty) ...[
           const SizedBox(height: CairnSpacing.sm),
@@ -593,13 +620,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         ),
         const SizedBox(height: CairnSpacing.sm),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: FilledButton.icon(
-            onPressed: _busy ? null : _buildDataset,
-            icon: const Icon(Icons.cleaning_services_outlined),
-            label: const Text('ساخت دیتاست و توکن‌ساز'),
-          ),
+        Wrap(
+          spacing: CairnSpacing.sm,
+          runSpacing: CairnSpacing.xs,
+          children: [
+            FilledButton.icon(
+              onPressed: _busy ? null : _buildDataset,
+              icon: const Icon(Icons.cleaning_services_outlined),
+              label: const Text('ساخت دیتاست و توکن‌ساز'),
+            ),
+            TextButton.icon(
+              onPressed: _busy ? null : _fillSample,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: Text(s.trainSampleButton),
+            ),
+          ],
         ),
         if (dataset != null) ...[
           const SizedBox(height: CairnSpacing.sm),
@@ -658,6 +693,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
             ),
           ],
         ),
+        const SizedBox(height: CairnSpacing.sm),
+        Text(s.trainArchHelp, style: theme.textTheme.bodySmall),
         const SizedBox(height: CairnSpacing.sm),
         Wrap(
           spacing: 12,
