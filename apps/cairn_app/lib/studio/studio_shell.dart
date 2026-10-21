@@ -9,6 +9,7 @@ import 'project_store.dart';
 import 'projects_screen.dart';
 import 'provider_settings.dart';
 import 'settings_screen.dart';
+import 'skill_store.dart';
 import 'test_console_screen.dart';
 
 /// The studio shell: one identical structure on phone and desktop —
@@ -23,12 +24,14 @@ class StudioShell extends StatefulWidget {
     required this.registry,
     required this.settingsStore,
     required this.keyStore,
+    required this.skillStore,
   });
 
   final ProjectStore store;
   final ToolRegistry registry;
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
+  final SkillStore skillStore;
 
   @override
   State<StudioShell> createState() => _StudioShellState();
@@ -52,16 +55,31 @@ class _StudioShellState extends State<StudioShell> {
   int _index = 0;
   AgentProject? _selectedProject;
   List<ProviderConfig> _providerConfigs = const [];
+  List<Skill> _skills = const [];
 
   @override
   void initState() {
     super.initState();
     _reloadProviders();
+    _reloadSkills();
   }
 
   Future<void> _reloadProviders() async {
     final configs = await widget.settingsStore.load();
-    if (mounted) setState(() => _providerConfigs = configs);
+    if (mounted) {
+      setState(() {
+        _providerConfigs = configs;
+      });
+    }
+  }
+
+  Future<void> _reloadSkills() async {
+    final skills = await widget.skillStore.list();
+    if (mounted) {
+      setState(() {
+        _skills = skills;
+      });
+    }
   }
 
   void _openProject(AgentProject project) {
@@ -83,6 +101,9 @@ class _StudioShellState extends State<StudioShell> {
           registry: widget.registry,
           providerConfigs: _providerConfigs,
           onProjectChanged: () => setState(() {}),
+          skillStore: widget.skillStore,
+          skills: _skills,
+          onSkillsChanged: _reloadSkills,
         );
       case 2:
         return TestConsoleScreen(
@@ -91,6 +112,7 @@ class _StudioShellState extends State<StudioShell> {
           providerConfigs: _providerConfigs,
           keyStore: widget.keyStore,
           onOpenSettings: () => setState(() => _index = 4),
+          skillRegistry: SkillRegistry(_skills),
         );
       case 3:
         return const _RoadmapPanel(

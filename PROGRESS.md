@@ -100,7 +100,7 @@ Last updated: 2026-10-21
   Flow 1 = runtime acceptance picture (voice input captured there as a
   requirement, not yet scheduled). Flow 2 = the M9 training pathway.
 
-## M6 — Skills, policy/approvals, project versioning & export 🔵
+## M6 — Skills, policy/approvals, project versioning & export ✅
 
 - ✅ Project export/import (part 1): `ProjectArchive` in cairn_core —
   portable `.cairn.zip` (manifest + project.cairn.json) with strict
@@ -117,6 +117,12 @@ Last updated: 2026-10-21
   without skill, unknown id) — runtime now 14/14. Pure-Dart total: 80.
   Remaining: SkillStore persistence + skills UI in the studio and the
   agent editor's skill picker.
+- ✅ Skills in the app: `SkillStore` (JSON files, validated/atomic,
+  corruption surfaced; 5 store tests) wired through the shell; the
+  agent editor keeps skillIds across saves, has an attach checklist
+  and a skills manager dialog (create with name/description/
+  instructions/tool chips, delete); the test console hands the
+  installed SkillRegistry to the orchestrator.
 ## M7 — Pairing + two-way sync + conflict resolution ⬜
 ## M8 — Compute overflow + optional self-hosted relay ⬜
 ## M9 — Fine-tune pathway + security hardening ⬜

@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'studio/project_store.dart';
 import 'studio/provider_settings.dart';
+import 'studio/skill_store.dart';
 import 'studio/studio_shell.dart';
 import 'ui/cairn_theme.dart';
 
@@ -18,6 +19,7 @@ class CairnApp extends StatelessWidget {
     ToolRegistry? registry,
     ProviderSettingsStore? settingsStore,
     ApiKeyStore? keyStore,
+    SkillStore? skillStore,
   })  : registry = registry ??
             ToolRegistry([
               ...BuiltInTools.all(),
@@ -29,12 +31,14 @@ class CairnApp extends StatelessWidget {
         settingsStore = settingsStore ?? ProviderSettingsStore(store.baseDir),
         // Tests may omit the key store (in-memory); main() always passes the
         // platform secure store.
-        keyStore = keyStore ?? MemoryApiKeyStore();
+        keyStore = keyStore ?? MemoryApiKeyStore(),
+        skillStore = skillStore ?? SkillStore(store.baseDir);
 
   final ProjectStore store;
   final ToolRegistry registry;
   final ProviderSettingsStore settingsStore;
   final ApiKeyStore keyStore;
+  final SkillStore skillStore;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +52,7 @@ class CairnApp extends StatelessWidget {
         registry: registry,
         settingsStore: settingsStore,
         keyStore: keyStore,
+        skillStore: skillStore,
       ),
     );
   }

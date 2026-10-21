@@ -6,6 +6,7 @@ import '../ui/tokens.dart';
 import 'project_store.dart';
 import 'provider_factory.dart';
 import 'provider_settings.dart';
+import 'skill_store.dart';
 
 /// The agent editor (approved v1 form editor): edits one [AgentBlueprint]
 /// inside the selected project — identity, system prompt, model, language
@@ -20,6 +21,9 @@ class AgentEditorScreen extends StatefulWidget {
     required this.registry,
     required this.providerConfigs,
     this.onProjectChanged,
+    required this.skillStore,
+    required this.skills,
+    this.onSkillsChanged,
   });
 
   final ProjectStore store;
@@ -27,6 +31,11 @@ class AgentEditorScreen extends StatefulWidget {
   final ToolRegistry registry;
   final List<ProviderConfig> providerConfigs;
   final VoidCallback? onProjectChanged;
+
+  /// Installed skills: attachable to the agent, manageable via the dialog.
+  final SkillStore skillStore;
+  final List<Skill> skills;
+  final VoidCallback? onSkillsChanged;
 
   @override
   State<AgentEditorScreen> createState() => _AgentEditorScreenState();
@@ -48,6 +57,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
   bool _memoryEnabled = true;
   bool _allowNetwork = true;
   final Set<String> _toolIds = {};
+  final Set<String> _skillIds = {};
 
   @override
   void dispose() {
@@ -77,6 +87,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       _memoryEnabled = true;
       _allowNetwork = true;
       _toolIds.clear();
+      _skillIds.clear();
     });
   }
 
@@ -98,7 +109,127 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
       _toolIds
         ..clear()
         ..addAll(a.tools.map((t) => t.toolId));
+      _skillIds
+        ..clear()
+        ..addAll(a.skillIds);
     });
+  }
+
+  /// Skills manager: list installed skills (with delete) and create new
+  /// ones (name, description, instructions, tool selection). Everything
+  /// persists through [SkillStore]; the shell reloads on change.
+  Future<void> _manageSkills() async {
+    final name = TextEditingController();
+    final description = TextEditingController();
+    final instructions = TextEditingController();
+    final selectedTools = <String>{};
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('مدیریت مهارت‌ها'),
+        content: SizedBox(
+          width: 480,
+          child: StatefulBuilder(
+            builder: (context, setDialogState) => SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.skills.isEmpty)
+                    const Text('هنوز مهارتی نصب نشده است.')
+                  else
+                    for (final skill in widget.skills)
+                      ListTile(
+                        title: Text(skill.name),
+                        subtitle: Text(skill.toolIds.isEmpty
+                            ? 'بدون ابزار'
+                            : skill.toolIds.join('، ')),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'حذف مهارت',
+                          onPressed: () async {
+                            await widget.skillStore.delete(skill.id);
+                            setState(() {
+                              _skillIds.remove(skill.id);
+                            });
+                            widget.onSkillsChanged?.call();
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                  const Divider(),
+                  Text('مهارت تازه',
+                      style: Theme.of(context).textTheme.titleSmall),
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'نام مهارت'),
+                  ),
+                  TextField(
+                    controller: description,
+                    decoration: const InputDecoration(labelText: 'توضیح'),
+                  ),
+                  TextField(
+                    controller: instructions,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                        labelText: 'دستورالعمل برای ایجنت'),
+                  ),
+                  const SizedBox(height: CairnSpacing.sm),
+                  const Text('ابزارهای این مهارت:'),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final tool in widget.registry.all)
+                        FilterChip(
+                          label: Text(tool.id),
+                          selected: selectedTools.contains(tool.id),
+                          onSelected: (v) => setDialogState(() {
+                            if (v) {
+                              selectedTools.add(tool.id);
+                            } else {
+                              selectedTools.remove(tool.id);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('بستن'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final skill = Skill(
+                name: name.text.trim(),
+                description: description.text.trim(),
+                instructions: instructions.text,
+                toolIds: selectedTools.toList(),
+              );
+              try {
+                await widget.skillStore.save(skill);
+                widget.onSkillsChanged?.call();
+                if (context.mounted) Navigator.pop(context);
+              } on FormatException catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(e.message)));
+                }
+              }
+            },
+            child: const Text('ساختن مهارت'),
+          ),
+        ],
+      ),
+    );
+    name.dispose();
+    description.dispose();
+    instructions.dispose();
   }
 
   AgentBlueprint _buildBlueprint() {
@@ -119,6 +250,7 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
         translateWhenNeeded: _translate,
       ),
       tools: [for (final id in _toolIds) ToolBinding(toolId: id)],
+      skillIds: _skillIds.toList(),
       memory: MemoryConfig(enabled: _memoryEnabled),
       policy: PolicyConfig(
         approvalLevel: _approval,
@@ -406,6 +538,39 @@ class _AgentEditorScreenState extends State<AgentEditorScreen> {
                       }
                     }),
                   ),
+                const SizedBox(height: CairnSpacing.lg),
+                Row(
+                  children: [
+                    Text('مهارت‌های متصل',
+                        style: theme.textTheme.titleMedium),
+                    const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: _manageSkills,
+                      icon: const Icon(Icons.extension_outlined),
+                      label: const Text('مدیریت مهارت‌ها'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CairnSpacing.xs),
+                if (widget.skills.isEmpty)
+                  const Text(
+                      'هنوز مهارتی نصب نشده است؛ از «مدیریت مهارت‌ها» بساز.')
+                else
+                  for (final skill in widget.skills)
+                    CheckboxListTile(
+                      title: Text(skill.name),
+                      subtitle: Text(skill.description.isEmpty
+                          ? '${skill.toolIds.length} ابزار'
+                          : skill.description),
+                      value: _skillIds.contains(skill.id),
+                      onChanged: (v) => setState(() {
+                        if (v == true) {
+                          _skillIds.add(skill.id);
+                        } else {
+                          _skillIds.remove(skill.id);
+                        }
+                      }),
+                    ),
                 const SizedBox(height: CairnSpacing.xxl),
                 Row(
                   children: [

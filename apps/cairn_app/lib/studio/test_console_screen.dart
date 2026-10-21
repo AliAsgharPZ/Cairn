@@ -21,6 +21,7 @@ class TestConsoleScreen extends StatefulWidget {
     required this.providerConfigs,
     required this.keyStore,
     this.onOpenSettings,
+    this.skillRegistry,
   });
 
   final AgentProject? project;
@@ -28,6 +29,10 @@ class TestConsoleScreen extends StatefulWidget {
   final List<ProviderConfig> providerConfigs;
   final ApiKeyStore keyStore;
   final VoidCallback? onOpenSettings;
+
+  /// Installed skills, handed to the orchestrator so agents can use the
+  /// skills they reference (unknown ids fail the run loudly).
+  final SkillRegistry? skillRegistry;
 
   @override
   State<TestConsoleScreen> createState() => _TestConsoleScreenState();
@@ -134,6 +139,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
       provider: buildProvider(config, widget.keyStore),
       registry: widget.registry,
       journal: journal,
+      skillRegistry: widget.skillRegistry,
     );
     try {
       final outcome = await orchestrator.run(
