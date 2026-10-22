@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'device_identity.dart';
+import 'language_store.dart';
 import 'model_store.dart';
 import 'pipeline_runner.dart';
 import 'provider_factory.dart';
@@ -78,6 +79,12 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   // Chain mode (v1.2): run the project's whole pipeline.
   bool _chainMode = false;
   final _chainInput = TextEditingController();
+
+  /// The app's language registry + the language the user says the
+  /// chain input is written in ('' = not declared). v1.4: no
+  /// language is ever assumed.
+  List<AppLanguage> _languages = LanguageStore.builtins;
+  String _inputLang = '';
   bool _chainRunning = false;
   ChainResult? _chainResult;
   String? _chainError;
@@ -123,12 +130,15 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
     if (project == null || baseDir == null) return;
     final input = _chainInput.text.trim();
     if (input.isEmpty) return;
+    final uiLanguage = Localizations.localeOf(context).languageCode;
     setState(() {
       _chainRunning = true;
       _chainResult = null;
       _chainError = null;
     });
     try {
+      final languages = await LanguageStore(baseDir).list();
+      if (mounted) setState(() => _languages = languages);
       final runner = PipelineRunner(
         models: ModelStore(baseDir),
         providerFor: _providerForDef,
@@ -137,11 +147,14 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
         registry: widget.registry,
         skillRegistry: widget.skillRegistry ?? SkillRegistry(const []),
         outputsDir: Directory('${baseDir.path}/outputs'),
+        defaultLanguage: uiLanguage,
+        languageName: (code) => languageEnglishName(languages, code),
       );
       final result = await runner.run(
         project: project,
         input: input,
         approvalGate: _approvalGate,
+        inputLang: _inputLang,
       );
       if (mounted) setState(() => _chainResult = result);
     } catch (e) {
@@ -153,6 +166,19 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   List<Widget> _chainWidgets(ThemeData theme, S s) {
     final result = _chainResult;
     return [
+      DropdownButtonFormField<String>(
+        initialValue: _inputLang,
+        decoration: InputDecoration(labelText: s.inputLangLabel),
+        items: [
+          DropdownMenuItem(value: '', child: Text(s.autoLang)),
+          for (final l in _languages)
+            DropdownMenuItem(value: l.code, child: Text(l.name)),
+        ],
+        onChanged: _chainRunning
+            ? null
+            : (v) => setState(() => _inputLang = v ?? ''),
+      ),
+      const SizedBox(height: CairnSpacing.sm),
       TextField(
         controller: _chainInput,
         minLines: 2,

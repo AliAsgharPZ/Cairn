@@ -8,6 +8,7 @@ import '../ui/motion.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'agent_editor_screen.dart';
+import 'language_store.dart';
 import 'model_store.dart';
 import 'project_store.dart';
 import 'provider_settings.dart';
@@ -53,6 +54,7 @@ class ProjectWorkspaceScreen extends StatefulWidget {
 class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   bool _showFlow = true;
   List<ModelDefinition> _models = const [];
+  List<AppLanguage> _languages = LanguageStore.builtins;
 
   ModelStore get _modelStore => ModelStore(widget.baseDir);
 
@@ -70,7 +72,13 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
 
   Future<void> _loadModels() async {
     final models = await _modelStore.list();
-    if (mounted) setState(() => _models = models);
+    final languages = await LanguageStore(widget.baseDir).list();
+    if (mounted) {
+      setState(() {
+        _models = models;
+        _languages = languages;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -190,6 +198,51 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     await _save();
                   },
                 ),
+              if (step.role == ModelRole.translator) ...[
+                const SizedBox(height: CairnSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: step.fromLang,
+                        decoration: InputDecoration(labelText: s.fromLang),
+                        items: [
+                          DropdownMenuItem(
+                              value: '', child: Text(s.autoLang)),
+                          for (final l in _languages)
+                            DropdownMenuItem(
+                                value: l.code, child: Text(l.name)),
+                        ],
+                        onChanged: (v) async {
+                          step.fromLang = v ?? '';
+                          await _save();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: CairnSpacing.sm),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: step.toLang,
+                        decoration: InputDecoration(labelText: s.toLang),
+                        items: [
+                          DropdownMenuItem(
+                              value: '', child: Text(s.autoLang)),
+                          DropdownMenuItem(
+                              value: 'input',
+                              child: Text(s.backToInputLang)),
+                          for (final l in _languages)
+                            DropdownMenuItem(
+                                value: l.code, child: Text(l.name)),
+                        ],
+                        onChanged: (v) async {
+                          step.toLang = v ?? '';
+                          await _save();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -203,6 +256,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       padding: const EdgeInsets.all(CairnSpacing.md),
       children: [
         Text(s.flowHelp, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: CairnSpacing.md),
+        DropdownButtonFormField<String>(
+          initialValue: project.language,
+          decoration: InputDecoration(labelText: s.projectLang),
+          items: [
+            DropdownMenuItem(value: '', child: Text(s.autoLang)),
+            for (final l in _languages)
+              DropdownMenuItem(value: l.code, child: Text(l.name)),
+          ],
+          onChanged: (v) async {
+            project.language = v ?? '';
+            await _save();
+          },
+        ),
         const SizedBox(height: CairnSpacing.md),
         if (project.pipeline.isEmpty)
           FilledButton.icon(

@@ -60,6 +60,7 @@ class AgentProject {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.schemaVersion = kProjectSchemaVersion,
+    this.language = '',
   })  : id = id ?? newId(),
         agents = agents ?? [],
         outputs = outputs ?? [],
@@ -85,6 +86,12 @@ class AgentProject {
   final DateTime createdAt;
   DateTime updatedAt;
   final int schemaVersion;
+
+  /// The project's working language code (v1.4) — the language the
+  /// flowchart's models work in. '' = the language the user writes
+  /// in (no fixed Persian/English assumption anywhere: any language
+  /// from the app's registry, built-in or custom, can be chosen).
+  String language;
 
   /// Records [output] on the project, replacing any earlier output of
   /// the same kind pointing at the same record (re-registering a
@@ -149,6 +156,7 @@ class AgentProject {
         'agents': agents.map((a) => a.toJson()).toList(),
         'outputs': outputs.map((o) => o.toJson()).toList(),
         'pipeline': pipeline.map((p) => p.toJson()).toList(),
+        'language': language,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -169,6 +177,7 @@ class AgentProject {
             .map((e) =>
                 PipelineStep.fromJson((e as Map).cast<String, Object?>()))
             .toList(),
+        language: json['language'] as String? ?? '',
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
         schemaVersion:

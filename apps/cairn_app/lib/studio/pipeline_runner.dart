@@ -60,7 +60,17 @@ class PipelineRunner {
     required this.registry,
     required this.skillRegistry,
     required this.outputsDir,
+    required this.defaultLanguage,
+    required this.languageName,
   });
+
+  /// The studio UI's language code — the last-resort working
+  /// language when neither the project nor the run names one.
+  final String defaultLanguage;
+
+  /// Resolves a language code to the name models are told
+  /// ("German"); supplied from the app's language registry.
+  final String Function(String code) languageName;
 
   final ModelStore models;
 
@@ -78,23 +88,12 @@ class PipelineRunner {
   final SkillRegistry skillRegistry;
   final Directory outputsDir;
 
-  static bool looksPersian(String text) {
-    var arabic = 0, latin = 0;
-    for (final r in text.runes) {
-      if ((r >= 0x0600 && r <= 0x06FF) || (r >= 0xFB50 && r <= 0xFEFF)) {
-        arabic++;
-      } else if ((r >= 0x41 && r <= 0x5A) || (r >= 0x61 && r <= 0x7A)) {
-        latin++;
-      }
-    }
-    return arabic >= latin && arabic > 0;
-  }
-
   Future<ChainResult> run({
     required AgentProject project,
     required String input,
     required Future<bool> Function(ApprovalRequest) approvalGate,
     CancelToken? cancelToken,
+    String inputLang = '',
   }) async {
     final traces = <ChainStepTrace>[];
     final defs = await models.list();
@@ -111,7 +110,14 @@ class PipelineRunner {
     }
 
     var current = input;
-    final lang = looksPersian(input) ? 'fa' : 'en';
+    // Language state (v1.4): NO language pair is assumed anywhere.
+    // The text's language starts as the run's declared input
+    // language; translator steps move it to their configured target;
+    // a step without a target uses the project's working language.
+    var textLang = inputLang;
+    final workingLang = project.language.isNotEmpty
+        ? project.language
+        : (inputLang.isNotEmpty ? inputLang : defaultLanguage);
     String? intent;
     String? route;
     var agentAnswered = false;
@@ -121,7 +127,17 @@ class PipelineRunner {
       final def = resolve(step);
       switch (step.role) {
         case ModelRole.translator:
-          current = await _translate(traces, def, current);
+          final r = await _translate(
+            traces,
+            def,
+            current,
+            step: step,
+            textLang: textLang,
+            inputLang: inputLang,
+            workingLang: workingLang,
+          );
+          current = r.$1;
+          textLang = r.$2;
         case ModelRole.interpreter:
           intent = await _interpret(traces, def, current);
         case ModelRole.manager:
@@ -170,7 +186,7 @@ class PipelineRunner {
     return ChainResult(
       traces: traces,
       finalText: current,
-      detectedLang: lang,
+      detectedLang: inputLang,
       intent: intent ?? '',
     );
   }
@@ -191,8 +207,35 @@ class PipelineRunner {
     return res.text;
   }
 
-  Future<String> _translate(
-      List<ChainStepTrace> traces, ModelDefinition? def, String text) async {
+  /// One translator step. Returns the (possibly translated) text and
+  /// the language the text is in afterwards. Language-agnostic: the
+  /// target comes from the step ('input' = back to the language the
+  /// user wrote in), else the project's working language. When the
+  /// text is already in the target language the step honestly does
+  /// nothing instead of burning a model call.
+  Future<(String, String)> _translate(
+    List<ChainStepTrace> traces,
+    ModelDefinition? def,
+    String text, {
+    required PipelineStep step,
+    required String textLang,
+    required String inputLang,
+    required String workingLang,
+  }) async {
+    var target = switch (step.toLang) {
+      'input' => inputLang,
+      '' => workingLang,
+      final code => code,
+    };
+    if (target.isEmpty) target = workingLang;
+    if (textLang.isNotEmpty && target == textLang) {
+      traces.add(ChainStepTrace(
+        role: ModelRole.translator,
+        output: _short(text),
+        note: 'متن همین حالا به زبان مقصد است',
+      ));
+      return (text, textLang);
+    }
     final provider = def == null ? null : providerFor(def);
     if (def == null || provider == null) {
       traces.add(ChainStepTrace(
@@ -200,16 +243,17 @@ class PipelineRunner {
         output: _short(text),
         note: 'مدل مترجمی وصل نیست',
       ));
-      return text;
+      return (text, textLang);
     }
-    final toEnglish = looksPersian(text);
+    final sourceCode = step.fromLang.isNotEmpty ? step.fromLang : textLang;
+    final sourceName =
+        sourceCode.isNotEmpty ? languageName(sourceCode) : 'the source language';
     try {
       final out = await _askModel(
         def,
         provider,
-        system: toEnglish
-            ? 'Translate the text to English. Reply with the translation only.'
-            : 'Translate the text to Persian. Reply with the translation only.',
+        system: 'Translate the following text from $sourceName to '
+            '${languageName(target)}. Reply with the translation only.',
         user: text,
       );
       final result = (out ?? '').trim();
@@ -218,14 +262,14 @@ class PipelineRunner {
         output: _short(result),
         note: 'با «${def.name}»',
       ));
-      return result.isEmpty ? text : result;
+      return result.isEmpty ? (text, textLang) : (result, target);
     } catch (e) {
       traces.add(ChainStepTrace(
         role: ModelRole.translator,
         output: _short(text),
         note: 'ترجمه ناموفق بود',
       ));
-      return text;
+      return (text, textLang);
     }
   }
 
@@ -254,16 +298,13 @@ class PipelineRunner {
       } catch (_) {}
     }
     if (intent.isEmpty) {
-      final lower = text.toLowerCase();
-      if (lower.contains('translate') || text.contains('ترجمه')) {
-        intent = 'translate';
-      } else if (text.contains('?') || text.contains('؟')) {
-        intent = 'question';
-      } else if (RegExp(r'^(سلام|hello|hi|hey)').hasMatch(lower.trim())) {
-        intent = 'chat';
-      } else {
-        intent = 'task';
-      }
+      // Language-neutral fallback only (v1.4): a question mark in
+      // any script means a question; everything else is treated as
+      // a task (the manager/LLM steps still get their say). The old
+      // Persian/English keyword rules are gone — no language pair is
+      // assumed anywhere in the flow.
+      intent =
+          (text.contains('?') || text.contains('؟')) ? 'question' : 'task';
     }
     traces.add(ChainStepTrace(
       role: ModelRole.interpreter,

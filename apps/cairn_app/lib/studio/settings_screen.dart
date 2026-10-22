@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
@@ -10,6 +11,7 @@ import '../ui/tokens.dart';
 import 'app_settings.dart';
 import 'backup_service.dart';
 import 'device_identity.dart';
+import 'language_store.dart';
 import 'devices_screen.dart';
 import 'project_store.dart';
 import 'provider_factory.dart';
@@ -252,6 +254,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: CairnSpacing.xxl),
+        ],
+        if (widget.projectsStore != null) ...[
+          Text(s.myLanguages, style: theme.textTheme.headlineMedium),
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: CairnSpacing.xs),
+            color: CairnColors.accentGold,
+          ),
+          const SizedBox(height: CairnSpacing.sm),
+          Text(s.myLanguagesHelp, style: theme.textTheme.bodySmall),
+          const SizedBox(height: CairnSpacing.sm),
+          _LanguagesCard(baseDir: widget.projectsStore!.baseDir),
           const SizedBox(height: CairnSpacing.xxl),
         ],
         if (widget.projectsStore != null) ...[
@@ -540,6 +556,126 @@ class _ProviderDialogState extends State<_ProviderDialog> {
           child: const Text('لغو'),
         ),
         FilledButton(onPressed: _save, child: const Text('ذخیره')),
+      ],
+    );
+  }
+}
+
+/// The language registry card (v1.4): built-in languages are listed
+/// and locked; the owner can add ANY custom language (name, English
+/// name for model prompts, code, direction) or remove their own.
+class _LanguagesCard extends StatefulWidget {
+  const _LanguagesCard({required this.baseDir});
+
+  final Directory baseDir;
+
+  @override
+  State<_LanguagesCard> createState() => _LanguagesCardState();
+}
+
+class _LanguagesCardState extends State<_LanguagesCard> {
+  List<AppLanguage> _languages = const [];
+  late final LanguageStore _store = LanguageStore(widget.baseDir);
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final langs = await _store.list();
+    if (mounted) setState(() => _languages = langs);
+  }
+
+  Future<void> _add() async {
+    final s = S.of(context);
+    final name = TextEditingController();
+    final english = TextEditingController();
+    final code = TextEditingController();
+    var rtl = false;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(s.addLanguage),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: InputDecoration(labelText: s.langDisplayName),
+                ),
+                TextField(
+                  controller: english,
+                  decoration: InputDecoration(labelText: s.langEnglishName),
+                ),
+                TextField(
+                  controller: code,
+                  decoration: InputDecoration(labelText: s.langCode),
+                ),
+                SwitchListTile(
+                  title: Text(s.langRtl),
+                  value: rtl,
+                  onChanged: (v) => setLocal(() => rtl = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(s.cReject),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(s.addLanguage),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    final c = code.text.trim().toLowerCase();
+    if (c.isEmpty || name.text.trim().isEmpty) return;
+    await _store.add(AppLanguage(
+      code: c,
+      name: name.text.trim(),
+      englishName:
+          english.text.trim().isEmpty ? c : english.text.trim(),
+      rtl: rtl,
+    ));
+    await _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final l in _languages)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(l.name),
+            subtitle: Text('${l.code} · ${l.englishName}'),
+            trailing: l.builtin
+                ? Chip(label: Text(s.builtinLang))
+                : IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () async {
+                      await _store.remove(l.code);
+                      await _reload();
+                    },
+                  ),
+          ),
+        OutlinedButton.icon(
+          onPressed: _add,
+          icon: const Icon(Icons.add),
+          label: Text(s.addLanguage),
+        ),
       ],
     );
   }

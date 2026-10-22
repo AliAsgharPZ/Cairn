@@ -72,6 +72,8 @@ void main() {
       registry: ToolRegistry(),
       skillRegistry: SkillRegistry(const []),
       outputsDir: Directory('${tmp.path}/outputs'),
+      defaultLanguage: 'fa',
+      languageName: (code) => code,
     );
   }
 
@@ -91,11 +93,12 @@ void main() {
         ModelRole.llm: ['Paris is the capital of France.'],
       };
     });
-    final project = buildChainDefaultProject();
+    final project = buildChainDefaultProject()..language = 'en';
     final result = await r.run(
       project: project,
       input: 'پایتخت فرانسه کجاست؟',
       approvalGate: (_) async => true,
+      inputLang: 'fa',
     );
     expect(result.detectedLang, 'fa');
     expect(result.intent, 'question');
@@ -145,6 +148,8 @@ void main() {
       registry: ToolRegistry(),
       skillRegistry: SkillRegistry(const []),
       outputsDir: Directory('${tmp.path}/outputs'),
+      defaultLanguage: 'fa',
+      languageName: (code) => code,
     );
     final project = buildChainDefaultProject();
     final result = await r.run(
@@ -172,6 +177,8 @@ void main() {
       registry: ToolRegistry(),
       skillRegistry: SkillRegistry(const []),
       outputsDir: Directory('${tmp.path}/outputs'),
+      defaultLanguage: 'fa',
+      languageName: (code) => code,
     );
     expect(r, isNotNull);
     final project = buildChainDefaultProject();
@@ -179,6 +186,7 @@ void main() {
       project: project,
       input: 'پایتخت فرانسه کجاست؟',
       approvalGate: (_) async => true,
+      inputLang: 'fa',
     );
     expect(result.detectedLang, 'fa');
     expect(result.intent, 'question'); // ؟ heuristic

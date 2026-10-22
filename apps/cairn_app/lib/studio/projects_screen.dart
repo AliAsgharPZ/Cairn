@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../ui/motion.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
-import 'model_store.dart';
 import 'project_store.dart';
 
 /// The studio's projects screen: real list/create/open/delete against
@@ -89,45 +88,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   /// Import dialog: lists the archives in the exports folder and imports
   /// the chosen one (validated; id collisions become a copy).
-  /// Creates the ready-made chain project — or opens it when it
-  /// already exists (its id is fixed by design). Also seeds the two
-  /// agent MODELS (v1.3: an agent is a model) the first time: the
-  /// Figma design agent and a general assistant, as definitions the
-  /// owner can edit in the Models tab.
+  /// Creates the chain project scaffold — or opens it when it
+  /// already exists (its id is fixed by design). v1.4: NOTHING is
+  /// seeded into it — no ready-made agents, no models; the owner
+  /// creates and binds their own (the owner's explicit order:
+  /// remove everything the assistant pre-wrote or pre-trained).
   Future<void> _createChainProject() async {
-    final modelStore = ModelStore(widget.store.baseDir);
-    if ((await modelStore.listOfRole(ModelRole.agent)).isEmpty) {
-      await modelStore.save(ModelDefinition(
-        id: 'figma-agent-model',
-        name: 'ایجنت فیگما',
-        role: ModelRole.agent,
-        providerId: 'ollama',
-        modelId: 'llama3.1',
-        description: 'طراحی رابط برای فیگما: فریم، کامپوننت، توکن طراحی.',
-        targetSoftware: 'Figma',
-        instructions:
-            'You are a UI design agent for Figma. For each request: clarify the screen and user, lay out frames and hierarchy, specify components with states and variants, give design tokens (colors as HEX, type scale, spacing, radii) as a tidy table, write the real copy (no lorem ipsum), and finish with numbered steps to build it in Figma. Be honest: you produce design specs and instructions; you do not click inside Figma itself.',
-        toolIds: const ['fs.list', 'fs.read', 'fs.write', 'http.get'],
-      ));
-      await modelStore.save(ModelDefinition(
-        id: 'general-agent-model',
-        name: 'دستیار عمومی',
-        role: ModelRole.agent,
-        providerId: 'ollama',
-        modelId: 'llama3.1',
-        description: 'کارهای عمومی فایلی و نرم‌افزاری.',
-        instructions:
-            'You are a general assistant agent. Do the requested work with your tools, verify the result, and report briefly and honestly.',
-        toolIds: const [
-          'fs.list',
-          'fs.read',
-          'fs.write',
-          'shell.run',
-          'http.get',
-          'calc.eval',
-        ],
-      ));
-    }
     final existing = await widget.store.load('chain-default-project');
     if (existing != null) {
       widget.onOpenProject?.call(existing);

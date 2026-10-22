@@ -16,6 +16,8 @@ class PipelineStep {
     required this.role,
     this.modelDefId = '',
     this.enabled = true,
+    this.fromLang = '',
+    this.toLang = '',
   }) : id = id ?? newId();
 
   final String id;
@@ -28,11 +30,24 @@ class PipelineStep {
 
   bool enabled;
 
+  /// Translator steps only (v1.4, language-agnostic flows): the
+  /// source language code; '' = whatever language the text is in.
+  String fromLang;
+
+  /// Translator steps only: the target language code; '' = the
+  /// project's language (or the input language when the project has
+  /// none); the special value 'input' = back to the language the
+  /// user wrote in. ANY language can be used — the registry lives in
+  /// the app (built-ins + the owner's custom languages).
+  String toLang;
+
   Map<String, Object?> toJson() => {
         'id': id,
         'role': role,
         'modelDefId': modelDefId,
         'enabled': enabled,
+        'fromLang': fromLang,
+        'toLang': toLang,
       };
 
   factory PipelineStep.fromJson(Map<String, Object?> json) {
@@ -59,6 +74,8 @@ class PipelineStep {
       modelDefId: (json['modelDefId'] as String?) ??
           (json['modelRef'] as String? ?? ''),
       enabled: json['enabled'] as bool? ?? true,
+      fromLang: json['fromLang'] as String? ?? '',
+      toLang: json['toLang'] as String? ?? '',
     );
   }
 
@@ -77,5 +94,7 @@ List<PipelineStep> defaultPipeline() => [
       PipelineStep(role: ModelRole.manager),
       PipelineStep(role: ModelRole.agent),
       PipelineStep(role: ModelRole.llm),
-      PipelineStep(role: ModelRole.translator),
+      // The last translator step returns the answer to the language
+      // the user wrote in ('input') — whatever language that is.
+      PipelineStep(role: ModelRole.translator, toLang: 'input'),
     ];

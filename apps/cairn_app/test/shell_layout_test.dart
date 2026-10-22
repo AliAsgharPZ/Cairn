@@ -62,4 +62,65 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );
+
+  testWidgets(
+    'edge destinations: the selected pill is evenly inset from the capsule ends',
+    (tester) async {
+      // v1.4 (owner: the leftmost/rightmost nav items look ugly when
+      // selected): the capsule has uniform inner padding, so the
+      // selected pill of an EDGE destination must be inset from the
+      // capsule's border on BOTH sides — never stuck to the wall.
+      tester.view.physicalSize = const Size(360, 740);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      late Directory tmp;
+      await tester.runAsync(() async {
+        tmp = await Directory.systemTemp.createTemp('cairn_shell_edge');
+        await tester.pumpWidget(CairnApp(store: ProjectStore(tmp)));
+        await _settle(tester);
+      });
+      addTearDown(() => tmp.delete(recursive: true));
+      await tester.pump();
+
+      Rect capsuleRect() {
+        // The capsule is the 64-high rounded container in the bottom
+        // bar: find it via its only 64-height Container ancestor of
+        // the settings nav icon.
+        final icon = find.byIcon(Icons.settings_outlined);
+        final containers = find.ancestor(
+          of: icon,
+          matching: find.byWidgetPredicate((w) =>
+              w is Container &&
+              w.constraints?.maxHeight == 64 &&
+              w.decoration is BoxDecoration),
+        );
+        expect(containers, findsWidgets);
+        return tester.getRect(containers.first);
+      }
+
+      Rect selectedPillRect() {
+        final pills = find.byWidgetPredicate((w) {
+          if (w is! AnimatedContainer) return false;
+          final d = w.decoration;
+          return d is BoxDecoration && d.color != null && d.color != Colors.transparent;
+        });
+        expect(pills, findsWidgets);
+        return tester.getRect(pills.first);
+      }
+
+      // Select the LAST destination (settings — an edge item).
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pump(const Duration(milliseconds: 400));
+      final capsule = capsuleRect();
+      final pill = selectedPillRect();
+      expect(pill.left - capsule.left, greaterThanOrEqualTo(4),
+          reason: 'selected edge pill must be inset from the capsule end');
+      expect(capsule.right - pill.right, greaterThanOrEqualTo(4),
+          reason: 'selected edge pill must be inset from the capsule end');
+      expect(pill.height, greaterThanOrEqualTo(44),
+          reason: 'the selected pill fills the capsule height evenly');
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }

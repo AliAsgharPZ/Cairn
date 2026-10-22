@@ -495,22 +495,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
-  /// The ready sample dataset (the same one the in-chat tutorial
-  /// uses): ten simple greeting/helper sentences, one per line.
-  void _fillSample() {
-    _dataController.text = 'سلام خوبی\n'
-        'سلام من اینجام\n'
-        'تو کی هستی\n'
-        'من یه دستیار مهربونم\n'
-        'اسمت چیه\n'
-        'اسم من کایرنه\n'
-        'خداحافظ فردا می بینمت\n'
-        'ممنون از کمکت\n'
-        'خواهش می کنم دوست من\n'
-        'امروز روز خوبیه';
-    _say('مثال آماده رو گذاشتم — حالا دکمهٔ «ساخت دیتاست و توکن‌ساز» رو بزن.');
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -643,11 +627,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
               onPressed: _busy ? null : _buildDataset,
               icon: const Icon(Icons.cleaning_services_outlined),
               label: Text(s.tBuildDataset),
-            ),
-            TextButton.icon(
-              onPressed: _busy ? null : _fillSample,
-              icon: const Icon(Icons.auto_awesome_outlined),
-              label: Text(s.trainSampleButton),
             ),
           ],
         ),

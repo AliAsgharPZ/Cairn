@@ -314,10 +314,17 @@ class _StudioShellState extends State<StudioShell>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
                 child: Container(
-              height: 62,
+              height: 64,
+              // v1.4 (owner: the leftmost/rightmost items look ugly
+              // when selected): the capsule now has UNIFORM inner
+              // padding, so an edge item's selected pill is inset
+              // from the capsule's curved end by exactly the same
+              // gap as everywhere else — before, the pill had only a
+              // 3px margin and visually stuck to the capsule wall.
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: scheme.surface,
-                borderRadius: BorderRadius.circular(31),
+                borderRadius: BorderRadius.circular(32),
                 border: Border.all(color: scheme.outline),
                 boxShadow: [
                   BoxShadow(
@@ -332,17 +339,17 @@ class _StudioShellState extends State<StudioShell>
                   for (var i = 0; i < destinations.length; i++)
                     Expanded(
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(31),
+                        borderRadius: BorderRadius.circular(999),
                         onTap: () => _goTo(i),
-                        child: Center(
-                          child: AnimatedContainer(
+                        child: AnimatedContainer(
                             duration: const Duration(milliseconds: 260),
                             curve: Curves.easeOutCubic,
+                            height: 50,
+                            alignment: Alignment.center,
                             margin:
-                                const EdgeInsets.symmetric(horizontal: 3),
+                                const EdgeInsets.symmetric(horizontal: 2),
                             padding: EdgeInsets.symmetric(
                               horizontal: i == _index ? 12 : 9,
-                              vertical: 9,
                             ),
                             decoration: BoxDecoration(
                               color: i == _index
@@ -401,7 +408,6 @@ class _StudioShellState extends State<StudioShell>
                                 ],
                               ),
                             ),
-                          ),
                         ),
                       ),
                     ),

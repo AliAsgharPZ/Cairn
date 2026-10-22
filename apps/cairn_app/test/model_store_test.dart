@@ -25,16 +25,16 @@ void main() {
     ));
     await store.save(ModelDefinition(
       id: 'm2',
-      name: 'ایجنت فیگما',
+      name: 'ایجنت نمونه',
       role: ModelRole.agent,
       providerId: 'openai-compatible',
       modelId: 'gpt-4o-mini',
-      targetSoftware: 'Figma',
+      targetSoftware: 'SampleApp',
       instructions: 'Design things.',
       lessons: [AgentLesson(title: 'درس یک', details: 'این‌طوری')],
     ));
     expect(await store.list(), hasLength(2));
-    expect((await store.firstOfRole(ModelRole.agent))!.name, 'ایجنت فیگما');
+    expect((await store.firstOfRole(ModelRole.agent))!.name, 'ایجنت نمونه');
 
     final json = await store.exportJson();
     final other = ModelStore(

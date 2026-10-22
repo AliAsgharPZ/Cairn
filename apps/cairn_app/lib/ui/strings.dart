@@ -145,6 +145,27 @@ class S {
   String get stepModelAuto => fa ? 'خودکار (اولین مدل این نقش)' : 'Automatic (first model of this role)';
   String get noModelForRole => fa ? 'هنوز مدلی با این نقش نساخته‌ای — از تب «مدل‌ها» بسازش.' : 'No model with this role yet — create it in the Models tab.';
   String get runFlow => fa ? 'اجرای فلوچارت' : 'Run the flowchart';
+
+  // Languages (v1.4): a registry of built-in + custom languages.
+  String get myLanguages => fa ? 'زبان‌های من' : 'My languages';
+  String get myLanguagesHelp => fa
+      ? 'هر زبانی را می‌توانی اضافه کنی و در فلوچارت و ترجمه‌ها ازش استفاده کنی. فارسی و انگلیسی توکارند.'
+      : 'Add any language and use it in flowcharts and translations. Persian and English are built in.';
+  String get addLanguage => fa ? 'افزودن زبان' : 'Add a language';
+  String get langDisplayName => fa ? 'نام زبان (به زبان خودش)' : 'Language name (in its own language)';
+  String get langEnglishName => fa ? 'نام انگلیسی زبان' : 'English name of the language';
+  String get langCode => fa ? 'کد زبان (مثلاً de)' : 'Language code (e.g. de)';
+  String get langRtl => fa ? 'راست‌به‌چپ است' : 'Written right-to-left';
+  String get builtinLang => fa ? 'توکار' : 'Built-in';
+  String get autoLang => fa ? 'خودکار' : 'Automatic';
+  String get inputLangLabel =>
+      fa ? 'زبانِ متن ورودی' : 'Language of the input text';
+  String get fromLang => fa ? 'از زبان' : 'From language';
+  String get toLang => fa ? 'به زبان' : 'To language';
+  String get backToInputLang =>
+      fa ? 'زبان ورودی (برگشت)' : 'The input language (back)';
+  String get projectLang =>
+      fa ? 'زبان کاری پروژه' : "The project's working language";
   String get backupTitle => fa ? 'پشتیبان کامل' : 'Full backup';
   String get backupHelp => fa
       ? 'از همه‌چیز (پروژه‌ها، مدل‌ها، دستگاه‌های جفت‌شده) یک فایل پشتیبان بگیر یا برگردان.'

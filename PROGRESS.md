@@ -444,3 +444,28 @@ demonstrations; import/export at several levels; non-programmer plain.
 - Removed: SmartModelsSection (the disliked auto-train buttons).
 - Levels of export: project (.cairn.zip), models (JSON), full backup.
 - Windows: Inno Setup installer (Cairn-Setup) built in CI next to the zip.
+
+## v1.4.0 — owner's purge + language freedom (2026-10-22)
+
+Owner: "remove every model and dataset you trained or wrote" + "we
+have no Persian/English model — users may speak any language" +
+"let users add custom languages" + capsule edge items ugly when
+selected. Done:
+- REMOVED all assistant-authored content: corpora.dart (hand-written
+  lang/intent corpora), phrase_translator.dart, text_classifier.dart,
+  smart_model_store.dart (cairn_training keeps only the generic
+  toolkit: dataset/tokenizer/NNLM/registry), the seeded Figma +
+  general-assistant model definitions, both pre-written agents in
+  the chain project (now an EMPTY scaffold), the Flow-1 reference
+  project + its generator tool, and the training screen's sample
+  dataset button.
+- Languages: LanguageStore registry (built-in fa/en + owner-added
+  custom languages with display name, English name, code, RTL) in
+  Settings; PipelineStep.fromLang/toLang; AgentProject.language;
+  runner is language-agnostic (explicit targets, 'input' = back to
+  the user's language, already-in-target steps skip honestly);
+  looksPersian and all fa/en heuristics deleted; console asks the
+  input language.
+- Capsule nav: uniform 5px inner padding + fixed-height pills —
+  edge selections no longer stick to the capsule wall; geometry
+  test asserts the inset at phone size.
