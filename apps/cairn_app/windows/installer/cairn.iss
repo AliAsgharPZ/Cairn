@@ -6,7 +6,7 @@
 ; Build (CI): ISCC /DAppVersion=1.3.0 /DSourceDir=<release dir> cairn.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.4.0"
+  #define AppVersion "0.4.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\build\windows\x64\runner\Release"
