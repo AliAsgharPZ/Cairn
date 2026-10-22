@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cairn.pages.dev/sitemap.xml
+Sitemap: https://cairn-abg.pages.dev/sitemap.xml

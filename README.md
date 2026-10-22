@@ -26,7 +26,7 @@ home LAN first, internet last).
 | **Windows (installer)** | `cairn-setup-v<version>.exe` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 | **Windows (portable)** | `cairn-windows-release-v<version>.zip` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 
-🌐 **Website:** https://cairn.pages.dev — downloads and project overview.
+🌐 **Website:** https://cairn-abg.pages.dev — downloads and project overview.
 All official builds live on the [Releases](https://github.com/AliAsgharPZ/Cairn/releases)
 page (permanent links). File naming is one convention everywhere: lowercase,
 versioned.
