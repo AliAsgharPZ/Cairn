@@ -1,0 +1,262 @@
+/* Cairn site — same design language as the app:
+   Oracle DESIGN.md tokens (warm neutral ladder, charcoal actions,
+   gold rule, brand red for the wordmark only), Arad type.
+   No shadows anywhere — tonal ladder + hairlines only. */
+
+@font-face {
+  font-family: "Arad";
+  src: url("/fonts/Arad-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Arad";
+  src: url("/fonts/Arad-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Arad";
+  src: url("/fonts/Arad-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-display: swap;
+}
+
+:root {
+  --primary: #312d2a;
+  --primary-pressed: #47423e;
+  --brand-mark: #c74634;
+  --ink: #161513;
+  --ink-deep: #211e1c;
+  --canvas: #ffffff;
+  --canvas-soft: #fbf9f8;
+  --canvas-tint: #f5f4f2;
+  --canvas-warm: #f1efed;
+  --hairline: #e4e1dd;
+  --divider: #e9e7e4;
+  --link: #006b8f;
+  --accent-gold: #f0cc71;
+  --accent-gold-soft: #f7e0a1;
+  --muted: #6f6a64;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: "Arad", Tahoma, sans-serif;
+  background: var(--canvas-soft);
+  color: var(--ink);
+  line-height: 1.9;
+  font-size: 17px;
+}
+
+.wrap {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ——— Top bar ——— */
+.topbar {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--hairline);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 62px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+.brand:hover { text-decoration: none; }
+.brand img { border-radius: 8px; }
+.wordmark {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  letter-spacing: 0.5px;
+  color: var(--brand-mark);
+  direction: ltr;
+}
+.topbar nav { display: flex; gap: 22px; }
+.topbar nav a { color: var(--ink-deep); font-size: 15.5px; }
+@media (max-width: 560px) {
+  .topbar nav a:not(:last-child) { display: none; }
+}
+
+/* ——— Hero ——— */
+.hero {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--divider);
+  padding: 72px 0 56px;
+}
+.kicker {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.hero h1 {
+  margin: 0;
+  font-size: clamp(30px, 5.4vw, 46px);
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--brand-mark);
+}
+.gold-rule {
+  width: 40px;
+  height: 4px;
+  background: var(--accent-gold);
+  border-radius: 2px;
+  margin: 22px 0;
+}
+.lede {
+  margin: 0;
+  max-width: 680px;
+  font-size: 18.5px;
+  color: var(--ink-deep);
+}
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+.version-line {
+  margin: 18px 0 0;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+/* ——— Buttons (Oracle: charcoal, radius 4, no shadow) ——— */
+.btn {
+  display: inline-block;
+  padding: 10px 22px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.7;
+  border: 1px solid var(--primary);
+}
+.btn:hover { text-decoration: none; }
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--primary-pressed); }
+.btn-ghost {
+  background: transparent;
+  color: var(--primary);
+}
+.btn-ghost:hover { background: var(--canvas-tint); }
+
+/* ——— Sections ——— */
+section { padding: 56px 0; }
+.band {
+  background: var(--canvas-tint);
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
+}
+h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+}
+.section-lede { margin: 0 0 18px; color: var(--muted); }
+
+.roles {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 0 0 30px;
+}
+.roles li {
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 4px 16px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 14px;
+}
+.card {
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.card h3 { margin: 0 0 6px; font-size: 18.5px; font-weight: 800; }
+.card p { margin: 0; color: var(--ink-deep); font-size: 16px; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 34px;
+  display: grid;
+  gap: 14px;
+}
+.steps li {
+  display: flex;
+  gap: 16px;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.step-n {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-gold-soft);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.steps h3 { margin: 0 0 4px; font-size: 18.5px; font-weight: 800; }
+.steps p { margin: 0; color: var(--ink-deep); font-size: 16px; }
+.center { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* ——— Footer ——— */
+footer {
+  background: var(--ink);
+  color: #e9e7e4;
+  padding: 26px 0;
+}
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  align-items: center;
+  font-size: 15px;
+}
+footer a { color: var(--accent-gold-soft); }
+footer .wordmark { font-size: 20px; }
