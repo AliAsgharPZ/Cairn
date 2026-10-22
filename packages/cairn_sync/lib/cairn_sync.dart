@@ -8,3 +8,6 @@ export 'src/overflow.dart';
 export 'src/pairing.dart';
 export 'src/session.dart';
 export 'src/transport.dart';
+export 'src/discovery.dart';
+export 'src/network_info.dart';
+export 'src/pairing_link.dart';
