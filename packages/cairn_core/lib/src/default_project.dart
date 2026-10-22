@@ -165,6 +165,6 @@ AgentProject buildChainDefaultProject() {
         'مدیر (مسیریابی) ← ایجنت‌ها / مدل پاسخ ← ترجمهٔ برگشت. '
         'از بخش «پروژه» زنجیره و مدل هر قدم را ببین و عوض کن.',
     agents: [figma, assistant],
-    pipeline: defaultPipeline(firstAgentId: figma.id),
+    pipeline: defaultPipeline(),
   );
 }

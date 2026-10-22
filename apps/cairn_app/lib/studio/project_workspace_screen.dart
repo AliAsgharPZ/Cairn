@@ -2,27 +2,25 @@ import 'dart:io';
 
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
-import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/motion.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'agent_editor_screen.dart';
+import 'model_store.dart';
 import 'project_store.dart';
 import 'provider_settings.dart';
 import 'skill_store.dart';
 
-/// The project workspace (v1.2 restructure): ONE place per project
-/// holding the two things a project is made of —
+/// The project workspace (v1.3): the project's FLOWCHART and its
+/// agents in one place.
 ///
-///  * the CHAIN (زنجیره): the connected line of models + agents a
-///    request flows through, each step's model replaceable;
-///  * the AGENTS (ایجنت‌ها): the existing editor, unchanged inside.
-///
-/// v1 kept "agent editor" as a detached tab and training in another,
-/// which the owner (rightly) called illogical: a project of several
-/// models and agents could not be seen — or wired — as one thing.
+/// The flowchart is the owner's to shape (their words: «بشه فلوچارت
+/// پروژه‌رو مشخص کرد تا مدل‌ها بر اساس اون روشن بشن و کار کنن»):
+/// steps are roles, each step binds a model of that role, and steps
+/// can be added, removed, reordered and switched on/off. Everything
+/// is labeled in plain language — no jargon, no long texts.
 class ProjectWorkspaceScreen extends StatefulWidget {
   const ProjectWorkspaceScreen({
     super.key,
@@ -53,27 +51,26 @@ class ProjectWorkspaceScreen extends StatefulWidget {
 }
 
 class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
-  bool _showChain = true;
-  List<SmartModel> _smartModels = const [];
+  bool _showFlow = true;
+  List<ModelDefinition> _models = const [];
 
-  SmartModelStore get _smartStore =>
-      SmartModelStore(Directory('${widget.baseDir.path}/models'));
+  ModelStore get _modelStore => ModelStore(widget.baseDir);
 
   @override
   void initState() {
     super.initState();
-    _loadSmart();
+    _loadModels();
   }
 
   @override
   void didUpdateWidget(ProjectWorkspaceScreen old) {
     super.didUpdateWidget(old);
-    if (old.project?.id != widget.project?.id) _loadSmart();
+    if (old.project?.id != widget.project?.id) _loadModels();
   }
 
-  Future<void> _loadSmart() async {
-    final models = await _smartStore.list();
-    if (mounted) setState(() => _smartModels = models);
+  Future<void> _loadModels() async {
+    final models = await _modelStore.list();
+    if (mounted) setState(() => _models = models);
   }
 
   Future<void> _save() async {
@@ -85,24 +82,46 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     if (mounted) setState(() {});
   }
 
-  String _kindForStep(String stepKind) => switch (stepKind) {
-        PipelineKind.detect => SmartModelKind.langDetect,
-        PipelineKind.interpret => SmartModelKind.intent,
-        PipelineKind.translateIn ||
-        PipelineKind.translateBack =>
-          SmartModelKind.translator,
-        _ => '',
-      };
+  Future<void> _addStep() async {
+    final s = S.of(context);
+    final role = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(s.addStep),
+        children: [
+          for (final role in ModelRole.all)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, role),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.roleTitle(role),
+                        style: Theme.of(context).textTheme.titleSmall),
+                    Text(s.roleHelp(role),
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (role == null) return;
+    widget.project!.pipeline.add(PipelineStep(role: role));
+    await _save();
+  }
 
   Widget _stepCard(S s, PipelineStep step, int index) {
     final theme = Theme.of(context);
-    final kind = _kindForStep(step.kind);
+    final project = widget.project!;
     final options = [
-      for (final m in _smartModels)
-        if (m.kind == kind) m,
+      for (final m in _models)
+        if (m.role == step.role) m,
     ];
     return FadeSlideIn(
-      delay: Duration(milliseconds: 40 * (index > 6 ? 6 : index)),
+      delay: Duration(milliseconds: 35 * (index > 6 ? 6 : index)),
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(CairnSpacing.md),
@@ -112,8 +131,37 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(s.stepTitle(step.kind),
-                        style: theme.textTheme.titleSmall),
+                    child: Text(
+                      '${index + 1}) ${s.roleTitle(step.role)}',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_upward, size: 19),
+                    onPressed: index == 0
+                        ? null
+                        : () async {
+                            project.pipeline.removeAt(index);
+                            project.pipeline.insert(index - 1, step);
+                            await _save();
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_downward, size: 19),
+                    onPressed: index == project.pipeline.length - 1
+                        ? null
+                        : () async {
+                            project.pipeline.removeAt(index);
+                            project.pipeline.insert(index + 1, step);
+                            await _save();
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 19),
+                    onPressed: () async {
+                      project.pipeline.removeAt(index);
+                      await _save();
+                    },
                   ),
                   Switch(
                     value: step.enabled,
@@ -124,43 +172,24 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   ),
                 ],
               ),
-              Text(s.stepHelp(step.kind),
-                  style: theme.textTheme.bodySmall),
-              if (kind.isNotEmpty) ...[
-                const SizedBox(height: CairnSpacing.sm),
+              Text(s.roleHelp(step.role), style: theme.textTheme.bodySmall),
+              const SizedBox(height: CairnSpacing.sm),
+              if (options.isEmpty)
+                Text(s.noModelForRole, style: theme.textTheme.bodySmall)
+              else
                 DropdownButtonFormField<String>(
-                  initialValue: step.modelRef,
-                  decoration:
-                      InputDecoration(labelText: s.bindingDefault),
+                  initialValue: step.modelDefId,
+                  decoration: InputDecoration(labelText: s.stepModelAuto),
                   items: [
-                    DropdownMenuItem(value: '', child: Text(s.bindingDefault)),
+                    DropdownMenuItem(value: '', child: Text(s.stepModelAuto)),
                     for (final m in options)
                       DropdownMenuItem(value: m.id, child: Text(m.name)),
                   ],
                   onChanged: (v) async {
-                    step.modelRef = v ?? '';
+                    step.modelDefId = v ?? '';
                     await _save();
                   },
                 ),
-              ],
-              if (step.kind == PipelineKind.agent &&
-                  widget.project!.agents.isNotEmpty) ...[
-                const SizedBox(height: CairnSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: step.agentId.isEmpty
-                      ? widget.project!.agents.first.id
-                      : step.agentId,
-                  decoration: InputDecoration(labelText: s.bindingAgent),
-                  items: [
-                    for (final a in widget.project!.agents)
-                      DropdownMenuItem(value: a.id, child: Text(a.name)),
-                  ],
-                  onChanged: (v) async {
-                    step.agentId = v ?? '';
-                    await _save();
-                  },
-                ),
-              ],
             ],
           ),
         ),
@@ -168,42 +197,34 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     );
   }
 
-  Widget _chainView(S s) {
+  Widget _flowView(S s) {
     final project = widget.project!;
-    if (project.pipeline.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(CairnSpacing.xxl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(s.chainHelp, textAlign: TextAlign.center),
-              const SizedBox(height: CairnSpacing.md),
-              FilledButton.icon(
-                icon: const Icon(Icons.add_link),
-                label: Text(s.chainAddDefault),
-                onPressed: () async {
-                  project.pipeline.addAll(defaultPipeline(
-                    firstAgentId:
-                        project.agents.isEmpty ? '' : project.agents.first.id,
-                  ));
-                  await _save();
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     return ListView(
       padding: const EdgeInsets.all(CairnSpacing.md),
       children: [
-        Text(s.chainHelp, style: Theme.of(context).textTheme.bodySmall),
+        Text(s.flowHelp, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: CairnSpacing.md),
-        for (var i = 0; i < project.pipeline.length; i++) ...[
-          _stepCard(s, project.pipeline[i], i),
-          if (i < project.pipeline.length - 1)
-            const Center(child: Icon(Icons.arrow_downward, size: 18)),
+        if (project.pipeline.isEmpty)
+          FilledButton.icon(
+            icon: const Icon(Icons.add_link),
+            label: Text(s.chainAddDefault),
+            onPressed: () async {
+              project.pipeline.addAll(defaultPipeline());
+              await _save();
+            },
+          )
+        else ...[
+          for (var i = 0; i < project.pipeline.length; i++) ...[
+            _stepCard(s, project.pipeline[i], i),
+            if (i < project.pipeline.length - 1)
+              const Center(child: Icon(Icons.arrow_downward, size: 18)),
+          ],
+          const SizedBox(height: CairnSpacing.md),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.add),
+            label: Text(s.addStep),
+            onPressed: _addStep,
+          ),
         ],
       ],
     );
@@ -244,9 +265,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       icon: const Icon(Icons.smart_toy_outlined),
                       label: Text(s.wsAgents)),
                 ],
-                selected: {_showChain},
+                selected: {_showFlow},
                 onSelectionChanged: (v) =>
-                    setState(() => _showChain = v.first),
+                    setState(() => _showFlow = v.first),
               ),
             ],
           ),
@@ -254,10 +275,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         const SizedBox(height: CairnSpacing.sm),
         Expanded(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: _showChain
+            duration: const Duration(milliseconds: 200),
+            child: _showFlow
                 ? KeyedSubtree(
-                    key: const ValueKey('chain'), child: _chainView(s))
+                    key: const ValueKey('flow'), child: _flowView(s))
                 : KeyedSubtree(
                     key: const ValueKey('agents'),
                     child: AgentEditorScreen(

@@ -2,11 +2,13 @@ import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:cairn_training/cairn_training.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'app_settings.dart';
+import 'backup_service.dart';
 import 'device_identity.dart';
 import 'devices_screen.dart';
 import 'project_store.dart';
@@ -248,6 +250,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                   },
                 ),
+            ],
+          ),
+          const SizedBox(height: CairnSpacing.xxl),
+        ],
+        if (widget.projectsStore != null) ...[
+          Text(s.backupTitle, style: theme.textTheme.headlineMedium),
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: CairnSpacing.xs),
+            color: CairnColors.accentGold,
+          ),
+          const SizedBox(height: CairnSpacing.sm),
+          Text(s.backupHelp, style: theme.textTheme.bodySmall),
+          const SizedBox(height: CairnSpacing.sm),
+          Wrap(
+            spacing: CairnSpacing.sm,
+            children: [
+              FilledButton.icon(
+                icon: const Icon(Icons.save_alt_outlined),
+                label: Text(s.backupExport),
+                onPressed: () async {
+                  final location = await getSaveLocation(
+                    suggestedName: 'cairn-backup.zip',
+                    acceptedTypeGroups: const [
+                      XTypeGroup(label: 'ZIP', extensions: ['zip']),
+                    ],
+                  );
+                  if (location == null) return;
+                  await BackupService(widget.projectsStore!.baseDir)
+                      .exportTo(location.path);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(s.backupDone)));
+                  }
+                },
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.restore_outlined),
+                label: Text(s.backupImport),
+                onPressed: () async {
+                  final file = await openFile(
+                    acceptedTypeGroups: const [
+                      XTypeGroup(label: 'ZIP', extensions: ['zip']),
+                    ],
+                  );
+                  if (file == null || !context.mounted) return;
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(s.backupImport),
+                      content: Text(s.backupHelp),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(s.cReject),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(s.backupImport),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok != true) return;
+                  final count = await BackupService(
+                          widget.projectsStore!.baseDir)
+                      .importFrom(file.path);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('${s.backupDone} ($count)')));
+                  }
+                },
+              ),
             ],
           ),
           const SizedBox(height: CairnSpacing.xxl),

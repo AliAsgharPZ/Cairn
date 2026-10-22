@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'device_identity.dart';
+import 'model_store.dart';
 import 'pipeline_runner.dart';
 import 'provider_factory.dart';
 import 'provider_settings.dart';
@@ -99,6 +100,23 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
         modelRegistry: widget.modelRegistry);
   }
 
+  ModelProvider? _providerForDef(ModelDefinition def) {
+    final config = _configForProviderId(def.providerId);
+    if (config == null) return null;
+    return buildProvider(config, widget.keyStore,
+        modelRegistry: widget.modelRegistry);
+  }
+
+  MediaProviders? _mediaForDef(ModelDefinition def) {
+    if (def.providerId == 'local-trained') return null;
+    final config = _configForProviderId(def.providerId);
+    if (config == null) return null;
+    return MediaProviders(
+      apiKeyResolver: () => widget.keyStore.read(def.providerId),
+      baseUrl: config.baseUrl ?? 'https://api.openai.com/v1',
+    );
+  }
+
   Future<void> _runChain() async {
     final project = widget.project;
     final baseDir = widget.baseDir;
@@ -112,10 +130,13 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
     });
     try {
       final runner = PipelineRunner(
-        smartStore: SmartModelStore(Directory('${baseDir.path}/models')),
-        providerFor: _chainProviderFor,
+        models: ModelStore(baseDir),
+        providerFor: _providerForDef,
+        providerForAgent: _chainProviderFor,
+        mediaFor: _mediaForDef,
         registry: widget.registry,
         skillRegistry: widget.skillRegistry ?? SkillRegistry(const []),
+        outputsDir: Directory('${baseDir.path}/outputs'),
       );
       final result = await runner.run(
         project: project,
@@ -185,7 +206,7 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(s.stepTitle(t.kind),
+                              Text(s.roleTitle(t.role),
                                   style: theme.textTheme.titleSmall),
                               if (t.output.isNotEmpty) ...[
                                 const SizedBox(height: CairnSpacing.xs),

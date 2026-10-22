@@ -419,3 +419,28 @@ sha256 c079b06a…, apksigner-verified signer cert 589ac4da… == the
 dedicated keystore. Windows zip: 17,271,640 bytes, sha256 e862c7a9…
 Delivered via Muse storage links expiring 2026-10-24 11:50 Tehran.
 Installs OVER v1.1.5 as a normal update (same signing key).
+
+## v1.3.0 (in delivery) — the owner's rebuild
+
+Owner verdict on v1.2 (2026-10-22): blank Android page with the capsule
+mid-screen (MY bug: a Center inside bottomNavigationBar ate the whole
+screen), network still claiming "connected" on mobile data, Windows
+"portable, not an installer", disliked tab slide animation, disliked
+the one-tap auto-trained model buttons + long texts, and a new spec:
+everything is a MODEL with a ROLE (llm/agent/translator/manager/
+interpreter/image/video/coder/audio), agents included; any open-source
+model or AI API must be usable; the project FLOWCHART is owner-defined
+and drives the models; software agents learn from the owner's
+demonstrations; import/export at several levels; non-programmer plain.
+
+- Shell: Center regression removed (Row-centered pill), PageView slide
+  replaced by IndexedStack + 170ms fade, phone-size geometry test.
+- Network: interface classification — cellular is not a LAN; 3-state card.
+- Roles: ModelDefinition + ModelStore; PipelineStep is now role +
+  modelDefId (v1.2 steps migrate); flowchart editor (add/remove/reorder/
+  bind); runner rewritten role-based with short traces; media adapters
+  (OpenAI-shaped image/speech/video) tested vs a local server; agent
+  lessons (demonstrations + optional screenshot) injected at run time.
+- Removed: SmartModelsSection (the disliked auto-train buttons).
+- Levels of export: project (.cairn.zip), models (JSON), full backup.
+- Windows: Inno Setup installer (Cairn-Setup) built in CI next to the zip.

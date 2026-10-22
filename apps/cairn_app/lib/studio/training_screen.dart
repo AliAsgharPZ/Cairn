@@ -2,14 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
+import 'models_section.dart';
 import 'project_store.dart';
 import 'provider_settings.dart';
-import 'smart_models_section.dart';
 
 /// Model training (M9 / Flow 2): capabilities → data → cleaning report
 /// → splits → tokenizer → architecture → REAL training (the in-app
@@ -29,6 +30,7 @@ class TrainingScreen extends StatefulWidget {
     required this.settingsStore,
     this.onProvidersChanged,
     this.projectStore,
+    this.toolRegistry,
   });
 
   final Directory baseDir;
@@ -40,6 +42,9 @@ class TrainingScreen extends StatefulWidget {
   /// user picks «مدل مستقل» or one concrete agent (project + agent) and
   /// the model is wired as that agent's brain on registration.
   final ProjectStore? projectStore;
+
+  /// The app's built-in tools, offered when creating agent models.
+  final ToolRegistry? toolRegistry;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -516,7 +521,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
       children: [
         Text(s.training, style: theme.textTheme.headlineSmall),
         const SizedBox(height: CairnSpacing.md),
-        SmartModelsSection(baseDir: widget.baseDir),
+        ModelsSection(
+          baseDir: widget.baseDir,
+          settingsStore: widget.settingsStore,
+          modelRegistry: widget.registry,
+          toolIds: [
+            for (final t in widget.toolRegistry?.all ?? const <Tool>[]) t.id,
+          ],
+        ),
         const SizedBox(height: CairnSpacing.xs),
         Text(s.trainIntro, style: theme.textTheme.bodySmall),
         const SizedBox(height: CairnSpacing.sm),

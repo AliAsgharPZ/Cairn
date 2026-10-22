@@ -44,3 +44,15 @@ jobs:
         with:
           name: cairn-windows-release
           path: apps/cairn_app/build/windows/x64/runner/Release/
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $version = (Select-String -Path apps/cairn_app/pubspec.yaml -Pattern '^version: ([0-9.]+)').Matches[0].Groups[1].Value
+          $release = Resolve-Path apps/cairn_app/build/windows/x64/runner/Release
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "/DSourceDir=$release" "/O$env:RUNNER_TEMP" apps/cairn_app/windows/installer/cairn.iss
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-windows-setup
+          path: ${{ runner.temp }}/Cairn-Setup-*.exe

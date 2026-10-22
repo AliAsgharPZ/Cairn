@@ -255,6 +255,7 @@ class _StudioShellState extends State<StudioShell>
             settingsStore: widget.settingsStore,
             onProvidersChanged: _reloadProviders,
             projectStore: widget.store,
+            toolRegistry: widget.registry,
           ),
         ),
         _KeepAlivePage(

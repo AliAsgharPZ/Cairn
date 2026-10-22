@@ -8,6 +8,7 @@ export 'src/budget.dart';
 export 'src/ids.dart';
 export 'src/journal.dart';
 export 'src/capabilities.dart';
+export 'src/model_definition.dart';
 export 'src/pipeline.dart';
 export 'src/project.dart';
 export 'src/project_archive.dart';

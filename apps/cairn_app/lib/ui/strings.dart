@@ -87,7 +87,72 @@ class S {
         'translator' => fa ? 'مترجم — $metric جفت‌جمله' : 'Translator — $metric pairs',
         _ => kind,
       };
-  String get runChain => fa ? 'اجرای زنجیره' : 'Run the chain';
+  String roleTitle(String role) => switch (role) {
+        'llm' => fa ? 'مدل زبانی (LLM)' : 'Language model (LLM)',
+        'agent' => fa ? 'ایجنت نرم‌افزار' : 'Software agent',
+        'translator' => fa ? 'مترجم' : 'Translator',
+        'manager' => fa ? 'مدیر' : 'Manager',
+        'interpreter' => fa ? 'مفسر' : 'Interpreter',
+        'image' => fa ? 'تصویرساز' : 'Image maker',
+        'video' => fa ? 'ویدیوساز' : 'Video maker',
+        'coder' => fa ? 'کدنویس' : 'Coder',
+        'audio' => fa ? 'صدا و آهنگ‌ساز' : 'Voice & music maker',
+        _ => role,
+      };
+  String roleHelp(String role) => switch (role) {
+        'llm' => fa ? 'متن می‌نویسد و جواب می‌دهد.' : 'Writes text and answers.',
+        'agent' => fa
+            ? 'با دستور و ابزار، توی یک نرم‌افزار کار انجام می‌دهد.'
+            : 'Does work in a piece of software, with instructions and tools.',
+        'translator' => fa ? 'فارسی و انگلیسی را به هم ترجمه می‌کند.' : 'Translates Persian ↔ English.',
+        'manager' => fa ? 'تصمیم می‌گیرد هر درخواست کجا برود.' : 'Decides where each request goes.',
+        'interpreter' => fa ? 'می‌فهمد کاربر چه می‌خواهد.' : 'Understands what the user wants.',
+        'image' => fa ? 'از روی متن، عکس می‌سازد.' : 'Makes images from text.',
+        'video' => fa ? 'از روی متن، ویدیو می‌سازد.' : 'Makes videos from text.',
+        'coder' => fa ? 'کد می‌نویسد و درست می‌کند.' : 'Writes and fixes code.',
+        'audio' => fa ? 'صدا، گفتار یا آهنگ می‌سازد.' : 'Makes voice, speech or music.',
+        _ => '',
+      };
+  String get modelToolsLabel => fa ? 'ابزارهایش' : 'Its tools';
+  String get myModels => fa ? 'مدل‌های من' : 'My models';
+  String get myModelsHelp => fa
+      ? 'هر مدل یک نقش دارد. مدل را بساز و به یک منبع وصلش کن: مدل متن‌باز روی Ollama، یا یک API. بعد توی فلوچارت پروژه ازش استفاده کن.'
+      : 'Every model has a role. Create one and point it at a source: an open-source model on Ollama, or an API. Then use it in a project flowchart.';
+  String get createModel => fa ? 'ساخت مدل' : 'Create a model';
+  String get modelNameLabel => fa ? 'اسم مدل' : 'Model name';
+  String get modelRoleLabel => fa ? 'نقش مدل' : 'Model role';
+  String get modelWhatLabel => fa ? 'این مدل چیکار می‌کنه؟' : 'What does this model do?';
+  String get modelSourceLabel => fa ? 'منبع (سرویس)' : 'Source (provider)';
+  String get modelIdLabel => fa ? 'اسم مدل در آن سرویس' : 'Model name at that source';
+  String get modelSoftwareLabel => fa ? 'نرم‌افزاری که باهاش کار می‌کند' : 'Software it works with';
+  String get modelInstructionsLabel => fa ? 'دستورهایش (چطور کار کند)' : 'Its instructions (how it works)';
+  String get lessonsTitle => fa ? 'درس‌هایی که بهش یاد داده‌ام' : 'Lessons I taught it';
+  String get lessonsHelp => fa
+      ? 'اپ نمی‌تواند یواشکی کار تو را در برنامه‌های دیگر تماشا کند. عوضش اینجا به ایجنت یاد می‌دهی چطور کار می‌کنی: یک درس بنویس و اگر خواستی عکس صفحه را هم بچسبان.'
+      : 'The app cannot secretly watch you work in other apps. Instead, teach the agent here how you work: write a lesson and attach a screenshot if you like.';
+  String get addLesson => fa ? 'افزودن درس' : 'Add a lesson';
+  String get lessonTitleLabel => fa ? 'عنوان درس' : 'Lesson title';
+  String get lessonDetailsLabel => fa ? 'چطور این کار را انجام می‌دهی؟' : 'How do you do this?';
+  String get attachScreenshot => fa ? 'چسباندن عکس صفحه' : 'Attach a screenshot';
+  String get exportModels => fa ? 'خروجی مدل‌ها' : 'Export models';
+  String get importModels => fa ? 'وارد کردن مدل‌ها' : 'Import models';
+  String modelsImported(int n) => fa ? '$n مدل وارد شد.' : '$n models imported.';
+  String get flowTitle => fa ? 'فلوچارت این پروژه' : 'This project’s flowchart';
+  String get flowHelp => fa
+      ? 'درخواست از این قدم‌ها رد می‌شود. هر قدم یک نقش است و مدل خودش را دارد — قدم اضافه کن، حذف کن یا جابه‌جا کن.'
+      : 'A request flows through these steps. Each step is a role with its own model — add, remove or reorder steps.';
+  String get addStep => fa ? 'افزودن قدم' : 'Add a step';
+  String get stepModelAuto => fa ? 'خودکار (اولین مدل این نقش)' : 'Automatic (first model of this role)';
+  String get noModelForRole => fa ? 'هنوز مدلی با این نقش نساخته‌ای — از تب «مدل‌ها» بسازش.' : 'No model with this role yet — create it in the Models tab.';
+  String get runFlow => fa ? 'اجرای فلوچارت' : 'Run the flowchart';
+  String get backupTitle => fa ? 'پشتیبان کامل' : 'Full backup';
+  String get backupHelp => fa
+      ? 'از همه‌چیز (پروژه‌ها، مدل‌ها، دستگاه‌های جفت‌شده) یک فایل پشتیبان بگیر یا برگردان.'
+      : 'Back up everything (projects, models, paired devices) into one file, or restore it.';
+  String get backupExport => fa ? 'گرفتن پشتیبان' : 'Back up';
+  String get backupImport => fa ? 'برگرداندن پشتیبان' : 'Restore';
+  String get backupDone => fa ? 'انجام شد.' : 'Done.';
+  String get runChain => fa ? 'اجرای فلوچارت' : 'Run the flowchart';
   String get runAgentMode => fa ? 'اجرای ایجنت' : 'Run agent';
   String get chainInputHint => fa ? 'درخواستت را بنویس (فارسی یا انگلیسی)…' : 'Write your request (Persian or English)…';
   String get chainRunButton => fa ? 'اجرا در زنجیره' : 'Run through the chain';

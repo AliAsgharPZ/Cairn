@@ -1,19 +1,23 @@
+import 'dart:io';
+
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
-import 'package:cairn_training/cairn_training.dart';
 
-/// One executed chain step, for the trace UI: what went in, what
-/// came out, and any honest note (fallback used, coverage, routing).
+import 'model_store.dart';
+
+/// One executed flowchart step, for the trace UI. Kept SHORT by
+/// design — the owner disliked the long texts of v1.2: one line of
+/// output, one short note.
 class ChainStepTrace {
   const ChainStepTrace({
-    required this.kind,
+    required this.role,
     required this.output,
     this.note,
     this.skipped = false,
   });
 
-  final String kind;
+  final String role;
   final String output;
   final String? note;
   final bool skipped;
@@ -33,57 +37,48 @@ class ChainResult {
   final String intent;
 }
 
-/// Runs a project's CHAIN (v1.2) end to end:
+String _short(String text, [int max = 300]) {
+  final t = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+  return t.length <= max ? t : '${t.substring(0, max)}…';
+}
+
+/// Runs a project's FLOWCHART (v1.3): steps execute in the owner's
+/// order; each step is a ROLE filled by the model definition bound
+/// to it (or the first definition of that role). One text stream
+/// flows through the steps; the interpreter and manager only set
+/// state (intent, route) that later steps respect.
 ///
-///   detect → translate-in → interpret → manage (route) →
-///   agent work OR LLM answer → translate-back
-///
-/// Every model slot resolves the same way: the step's bound smart
-/// model, else the newest trained model of that kind, else an
-/// honest fallback that SAYS it is a fallback (script heuristic for
-/// detection, passthrough for translation, keyword rules for
-/// intent). A step provided by a real provider model (the agent's
-/// translator role / main model) is used for translation and for
-/// the answer — that is the slot a Gemma will later fill.
+/// Everything is replaceable and honest: a step whose role has no
+/// usable model says so in one short line and passes the text on —
+/// nothing is ever fabricated.
 class PipelineRunner {
   PipelineRunner({
-    required this.smartStore,
+    required this.models,
     required this.providerFor,
+    required this.providerForAgent,
+    required this.mediaFor,
     required this.registry,
     required this.skillRegistry,
+    required this.outputsDir,
   });
 
-  final SmartModelStore smartStore;
+  final ModelStore models;
 
-  /// Resolves a runnable provider for an agent (+ optional model
-  /// override), or null when that provider is not configured.
-  final ModelProvider? Function(AgentBlueprint agent,
-      {ModelConfig? override}) providerFor;
+  /// A runnable chat provider for a model definition, or null.
+  final ModelProvider? Function(ModelDefinition def) providerFor;
+
+  /// Legacy path: a provider for a project agent blueprint.
+  final ModelProvider? Function(AgentBlueprint agent) providerForAgent;
+
+  /// A media adapter for a definition, or null when its source
+  /// cannot serve media.
+  final MediaProviders? Function(ModelDefinition def) mediaFor;
 
   final ToolRegistry registry;
   final SkillRegistry skillRegistry;
+  final Directory outputsDir;
 
-  Future<SmartModel?> _smart(PipelineStep? step, String kind) async {
-    if (step != null && step.modelRef.isNotEmpty) {
-      final bound = await smartStore.get(step.modelRef);
-      if (bound != null) return bound;
-    }
-    return smartStore.latestOfKind(kind);
-  }
-
-  PipelineStep? _step(AgentProject project, String kind) {
-    for (final s in project.pipeline) {
-      if (s.kind == kind) return s;
-    }
-    return null;
-  }
-
-  bool _on(AgentProject project, String kind) {
-    final s = _step(project, kind);
-    return s != null && s.enabled;
-  }
-
-  static bool _looksPersian(String text) {
+  static bool looksPersian(String text) {
     var arabic = 0, latin = 0;
     for (final r in text.runes) {
       if ((r >= 0x0600 && r <= 0x06FF) || (r >= 0xFB50 && r <= 0xFEFF)) {
@@ -102,300 +97,450 @@ class PipelineRunner {
     CancelToken? cancelToken,
   }) async {
     final traces = <ChainStepTrace>[];
-    final agentStep = _step(project, PipelineKind.agent);
-    final agent = (agentStep != null && agentStep.agentId.isNotEmpty
-            ? project.agentById(agentStep.agentId)
-            : null) ??
-        (project.agents.isEmpty ? null : project.agents.first);
-
-    // ---- 1) detect ----
-    var lang = 'en';
-    if (_on(project, PipelineKind.detect)) {
-      final model = await _smart(
-          _step(project, PipelineKind.detect), SmartModelKind.langDetect);
-      if (model != null) {
-        final p = model.asClassifier().predict(input);
-        lang = p.label;
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.detect,
-          output: lang == 'fa' ? 'فارسی (fa)' : 'English (en)',
-          note: 'مدل آموزش‌دیده «${model.name}» — اطمینان '
-              '${(p.confidence * 100).toStringAsFixed(0)}٪',
-        ));
-      } else {
-        lang = _looksPersian(input) ? 'fa' : 'en';
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.detect,
-          output: lang == 'fa' ? 'فارسی (fa)' : 'English (en)',
-          note: 'مدل آموزش‌دیده‌ای وصل نیست — تشخیص ساده از روی خط متن',
-        ));
-      }
-    } else {
-      lang = _looksPersian(input) ? 'fa' : 'en';
-      traces.add(const ChainStepTrace(
-          kind: PipelineKind.detect, output: '', skipped: true));
-    }
-
-    var working = input;
-
-    // ---- 2) translate in ----
-    if (_on(project, PipelineKind.translateIn)) {
-      if (lang == 'fa') {
-        working = await _translate(
-          traces,
-          kind: PipelineKind.translateIn,
-          step: _step(project, PipelineKind.translateIn),
-          text: working,
-          toEnglish: true,
-          agent: agent,
-        );
-      } else {
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.translateIn,
-          output: working,
-          note: 'متن از اول انگلیسی است — ترجمه لازم نبود',
-        ));
-      }
-    }
-
-    // ---- 3) interpret ----
-    var intent = 'task';
-    if (_on(project, PipelineKind.interpret)) {
-      final model = await _smart(
-          _step(project, PipelineKind.interpret), SmartModelKind.intent);
-      if (model != null) {
-        final p = model.asClassifier().predict(working);
-        intent = p.label;
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.interpret,
-          output: intent,
-          note: 'مدل مفسر «${model.name}» — اطمینان '
-              '${(p.confidence * 100).toStringAsFixed(0)}٪',
-        ));
-      } else {
-        final lower = working.toLowerCase();
-        if (lower.contains('translate') || working.contains('ترجمه')) {
-          intent = 'translate';
-        } else if (working.contains('?') || working.contains('؟')) {
-          intent = 'question';
-        } else if (RegExp(r'^(سلام|hello|hi|hey|سلامم)').hasMatch(lower.trim())) {
-          intent = 'chat';
-        } else {
-          intent = 'task';
+    final defs = await models.list();
+    ModelDefinition? resolve(PipelineStep step) {
+      if (step.modelDefId.isNotEmpty) {
+        for (final d in defs) {
+          if (d.id == step.modelDefId) return d;
         }
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.interpret,
-          output: intent,
-          note: 'مدل مفسر آموزش‌دیده‌ای وصل نیست — قانون‌های سادهٔ کلیدواژه‌ای',
-        ));
       }
+      for (final d in defs) {
+        if (d.role == step.role) return d;
+      }
+      return null;
     }
 
-    // ---- 4) manage (routing) ----
-    final route = switch (intent) {
+    var current = input;
+    final lang = looksPersian(input) ? 'fa' : 'en';
+    String? intent;
+    String? route;
+    var agentAnswered = false;
+
+    for (final step in project.pipeline) {
+      if (!step.enabled) continue;
+      final def = resolve(step);
+      switch (step.role) {
+        case ModelRole.translator:
+          current = await _translate(traces, def, current);
+        case ModelRole.interpreter:
+          intent = await _interpret(traces, def, current);
+        case ModelRole.manager:
+          route = await _manage(traces, def, current, intent);
+        case ModelRole.agent:
+          if (route == 'answer' || route == 'translate') {
+            traces.add(ChainStepTrace(
+              role: step.role,
+              output: '',
+              note: 'مدیر این درخواست را به ایجنت نفرستاد',
+              skipped: true,
+            ));
+            break;
+          }
+          final out = await _agent(
+              traces, def, project, current, approvalGate, cancelToken);
+          if (out != null) {
+            current = out;
+            agentAnswered = true;
+          }
+        case ModelRole.llm || ModelRole.coder:
+          if (route == 'agent' && agentAnswered) {
+            traces.add(ChainStepTrace(
+              role: step.role,
+              output: '',
+              note: 'ایجنت کار را انجام داد',
+              skipped: true,
+            ));
+            break;
+          }
+          final out = await _complete(traces, def, project, current,
+              coder: step.role == ModelRole.coder);
+          if (out != null) current = out;
+        case ModelRole.image || ModelRole.video || ModelRole.audio:
+          final out = await _media(traces, def, step.role, current);
+          if (out != null) current = out;
+        default:
+          traces.add(ChainStepTrace(
+            role: step.role,
+            output: '',
+            note: 'نقش ناشناخته',
+            skipped: true,
+          ));
+      }
+    }
+    return ChainResult(
+      traces: traces,
+      finalText: current,
+      detectedLang: lang,
+      intent: intent ?? '',
+    );
+  }
+
+  Future<String?> _askModel(
+    ModelDefinition def,
+    ModelProvider provider, {
+    required String system,
+    required String user,
+  }) async {
+    final res = await provider.complete(
+      ModelConfig(providerId: def.providerId, modelId: def.modelId),
+      ModelRequest(messages: [
+        if (system.isNotEmpty) ChatMessage(ChatRole.system, system),
+        ChatMessage(ChatRole.user, user),
+      ]),
+    );
+    return res.text;
+  }
+
+  Future<String> _translate(
+      List<ChainStepTrace> traces, ModelDefinition? def, String text) async {
+    final provider = def == null ? null : providerFor(def);
+    if (def == null || provider == null) {
+      traces.add(ChainStepTrace(
+        role: ModelRole.translator,
+        output: _short(text),
+        note: 'مدل مترجمی وصل نیست',
+      ));
+      return text;
+    }
+    final toEnglish = looksPersian(text);
+    try {
+      final out = await _askModel(
+        def,
+        provider,
+        system: toEnglish
+            ? 'Translate the text to English. Reply with the translation only.'
+            : 'Translate the text to Persian. Reply with the translation only.',
+        user: text,
+      );
+      final result = (out ?? '').trim();
+      traces.add(ChainStepTrace(
+        role: ModelRole.translator,
+        output: _short(result),
+        note: 'با «${def.name}»',
+      ));
+      return result.isEmpty ? text : result;
+    } catch (e) {
+      traces.add(ChainStepTrace(
+        role: ModelRole.translator,
+        output: _short(text),
+        note: 'ترجمه ناموفق بود',
+      ));
+      return text;
+    }
+  }
+
+  Future<String> _interpret(
+      List<ChainStepTrace> traces, ModelDefinition? def, String text) async {
+    String intent = '';
+    var viaModel = false;
+    final provider = def == null ? null : providerFor(def);
+    if (def != null && provider != null) {
+      try {
+        final out = await _askModel(
+          def,
+          provider,
+          system:
+              'Classify the user intent. Reply with exactly one word: question, task, chat, or translate.',
+          user: text,
+        );
+        final word = (out ?? '').toLowerCase();
+        for (final label in ['question', 'task', 'chat', 'translate']) {
+          if (word.contains(label)) {
+            intent = label;
+            viaModel = true;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+    if (intent.isEmpty) {
+      final lower = text.toLowerCase();
+      if (lower.contains('translate') || text.contains('ترجمه')) {
+        intent = 'translate';
+      } else if (text.contains('?') || text.contains('؟')) {
+        intent = 'question';
+      } else if (RegExp(r'^(سلام|hello|hi|hey)').hasMatch(lower.trim())) {
+        intent = 'chat';
+      } else {
+        intent = 'task';
+      }
+    }
+    traces.add(ChainStepTrace(
+      role: ModelRole.interpreter,
+      output: intent,
+      note: viaModel
+          ? 'با «${def!.name}»'
+          : (def == null ? 'مدل مفسری نیست — قانون ساده' : 'قانون ساده'),
+    ));
+    return intent;
+  }
+
+  Future<String> _manage(List<ChainStepTrace> traces, ModelDefinition? def,
+      String text, String? intent) async {
+    String route = switch (intent) {
       'question' || 'chat' => 'answer',
       'translate' => 'translate',
       _ => 'agent',
     };
+    var viaModel = false;
+    final provider = def == null ? null : providerFor(def);
+    if (def != null && provider != null && intent != null) {
+      try {
+        final out = await _askModel(
+          def,
+          provider,
+          system:
+              'You route requests. The interpreter said the intent is "$intent". Reply with exactly one word: AGENT (a software agent must do work), ANSWER (a language model should just answer), or TRANSLATE (the translation itself is the answer).',
+          user: text,
+        );
+        final word = (out ?? '').toUpperCase();
+        if (word.contains('TRANSLATE')) {
+          route = 'translate';
+          viaModel = true;
+        } else if (word.contains('ANSWER')) {
+          route = 'answer';
+          viaModel = true;
+        } else if (word.contains('AGENT')) {
+          route = 'agent';
+          viaModel = true;
+        }
+      } catch (_) {}
+    }
     traces.add(ChainStepTrace(
-      kind: PipelineKind.manage,
+      role: ModelRole.manager,
       output: switch (route) {
-        'answer' => 'ارجاع به مدل پاسخ (LLM)',
-        'translate' => 'خودِ ترجمه پاسخ است',
-        _ => 'ارجاع به ایجنت',
+        'answer' => 'مسیر: پاسخ با مدل زبانی',
+        'translate' => 'مسیر: خودِ ترجمه پاسخ است',
+        _ => 'مسیر: انجام کار با ایجنت',
       },
-      note: 'مدیر از روی برداشت مفسر مسیر را انتخاب کرد',
+      note: viaModel ? 'با «${def!.name}»' : 'از روی حرف مفسر',
     ));
-
-    // ---- 5/6) agent or answer ----
-    var answer = '';
-    if (route == 'translate') {
-      answer = working;
-    } else if (route == 'agent' && _on(project, PipelineKind.agent)) {
-      if (agent == null) {
-        traces.add(const ChainStepTrace(
-          kind: PipelineKind.agent,
-          output: '',
-          note: 'پروژه ایجنتی ندارد',
-          skipped: true,
-        ));
-        answer = working;
-      } else if (providerFor(agent) == null) {
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.agent,
-          output: '',
-          note: 'مدل ایجنت «${agent.name}» پیکربندی نشده — از تنظیمات یک '
-              'پرووایدر وصل کن (یا Ollama را روشن کن).',
-          skipped: true,
-        ));
-        answer = '';
-      } else {
-        final journal = Journal();
-        final orchestrator = Orchestrator(
-          provider: providerFor(agent)!,
-          registry: registry,
-          journal: journal,
-          skillRegistry: skillRegistry,
-        );
-        try {
-          final outcome = await orchestrator.run(
-            project: project,
-            agent: agent,
-            instruction: working,
-            approvalGate: approvalGate,
-            cancelToken: cancelToken,
-          );
-          answer = outcome.summary ??
-              outcome.stepOutputs.values
-                  .map((e) => e.toString())
-                  .where((t) => t.isNotEmpty)
-                  .join('\n');
-          if (answer.isEmpty) {
-            answer = outcome.failureReason ?? '(بدون خروجی)';
-          }
-          traces.add(ChainStepTrace(
-            kind: PipelineKind.agent,
-            output: answer,
-            note: 'ایجنت «${agent.name}» اجرا شد — وضعیت: ${outcome.run.status.name}',
-          ));
-        } catch (e) {
-          traces.add(ChainStepTrace(
-            kind: PipelineKind.agent,
-            output: '',
-            note: 'اجرای ایجنت ناموفق بود: $e',
-          ));
-          answer = '';
-        }
-      }
-    } else if (route == 'answer' && _on(project, PipelineKind.answer)) {
-      if (agent == null) {
-        traces.add(const ChainStepTrace(
-          kind: PipelineKind.answer,
-          output: '',
-          note: 'مدلی برای پاسخ وصل نیست',
-          skipped: true,
-        ));
-      } else {
-        final provider = providerFor(agent);
-        if (provider == null) {
-          traces.add(ChainStepTrace(
-            kind: PipelineKind.answer,
-            output: '',
-            note: 'پرووایدر مدل «${agent.name}» پیکربندی نشده — '
-                'از تنظیمات وصلش کن (یا Ollama را روشن کن).',
-          ));
-        } else {
-          try {
-            final res = await provider.complete(
-              agent.model,
-              ModelRequest(messages: [
-                if (agent.systemPrompt.isNotEmpty)
-                  ChatMessage(ChatRole.system, agent.systemPrompt),
-                ChatMessage(ChatRole.user, working),
-              ]),
-            );
-            answer = res.text;
-            traces.add(ChainStepTrace(
-              kind: PipelineKind.answer,
-              output: answer,
-              note: 'مدل پاسخ: ${agent.model.providerId}/${agent.model.modelId}',
-            ));
-          } catch (e) {
-            traces.add(ChainStepTrace(
-              kind: PipelineKind.answer,
-              output: '',
-              note: 'مدل پاسخ خطا داد: $e',
-            ));
-          }
-        }
-      }
-    }
-
-    // ---- 7) translate back ----
-    var finalText = answer;
-    if (_on(project, PipelineKind.translateBack)) {
-      if (lang == 'fa' && answer.isNotEmpty) {
-        finalText = await _translate(
-          traces,
-          kind: PipelineKind.translateBack,
-          step: _step(project, PipelineKind.translateBack),
-          text: answer,
-          toEnglish: false,
-          agent: agent,
-        );
-      } else {
-        traces.add(ChainStepTrace(
-          kind: PipelineKind.translateBack,
-          output: finalText,
-          note: lang == 'fa' ? 'پاسخی برای ترجمه نبود' : 'زبان کاربر انگلیسی است',
-        ));
-      }
-    }
-
-    return ChainResult(
-      traces: traces,
-      finalText: finalText,
-      detectedLang: lang,
-      intent: intent,
-    );
+    return route;
   }
 
-  /// Translation via the bound smart translator; falls back to the
-  /// agent's provider model (its translator role when set); falls
-  /// back to passthrough — each path labeled in the trace.
-  Future<String> _translate(
-    List<ChainStepTrace> traces, {
-    required String kind,
-    required PipelineStep? step,
-    required String text,
-    required bool toEnglish,
-    required AgentBlueprint? agent,
-  }) async {
-    final model = await _smart(step, SmartModelKind.translator);
-    if (model != null) {
-      final r = model.asTranslator().translate(text, toEnglish: toEnglish);
-      traces.add(ChainStepTrace(
-        kind: kind,
-        output: r.text,
-        note: 'مترجم جدولی «${model.name}» — پوشش واژه‌ها: '
-            '${(r.coverage * 100).toStringAsFixed(0)}٪'
-            '${r.coverage < 0.6 ? ' (کم است؛ برای ترجمهٔ واقعی مدل بزرگ وصل کن)' : ''}',
+  Future<String?> _agent(
+    List<ChainStepTrace> traces,
+    ModelDefinition? def,
+    AgentProject project,
+    String text,
+    Future<bool> Function(ApprovalRequest) approvalGate,
+    CancelToken? cancelToken,
+  ) async {
+    AgentBlueprint blueprint;
+    ModelProvider? provider;
+    String displayName;
+    if (def != null) {
+      displayName = def.name;
+      provider = providerFor(def);
+      blueprint = AgentBlueprint(
+        id: def.id,
+        name: def.name,
+        description: def.description,
+        systemPrompt: [
+          if (def.targetSoftware.isNotEmpty)
+            'You work with ${def.targetSoftware}.',
+          def.effectiveInstructions,
+        ].join('\n'),
+        model: ModelConfig(providerId: def.providerId, modelId: def.modelId),
+        tools: [for (final t in def.toolIds) ToolBinding(toolId: t)],
+        policy: const PolicyConfig(
+          approvalLevel: ApprovalLevel.sensitiveOnly,
+          allowNetwork: true,
+        ),
+      );
+    } else if (project.agents.isNotEmpty) {
+      blueprint = project.agents.first;
+      displayName = blueprint.name;
+      provider = providerForAgent(blueprint);
+    } else {
+      traces.add(const ChainStepTrace(
+        role: ModelRole.agent,
+        output: '',
+        note: 'هیچ ایجنتی تعریف نشده',
+        skipped: true,
       ));
-      return r.text;
+      return null;
     }
-    if (agent != null) {
-      final override = agent.translatorModel;
-      final provider = providerFor(agent, override: override);
-      if (provider != null) {
-        try {
-          final res = await provider.complete(
-            override ?? agent.model,
-            ModelRequest(messages: [
-              ChatMessage(
-                ChatRole.system,
-                toEnglish
-                    ? 'Translate the following text to English. Reply with the translation only.'
-                    : 'Translate the following text to Persian. Reply with the translation only.',
-              ),
-              ChatMessage(ChatRole.user, text),
-            ]),
-          );
+    if (provider == null) {
+      traces.add(ChainStepTrace(
+        role: ModelRole.agent,
+        output: '',
+        note: 'مدل «$displayName» وصل نیست',
+        skipped: true,
+      ));
+      return null;
+    }
+    final orchestrator = Orchestrator(
+      provider: provider,
+      registry: registry,
+      journal: Journal(),
+      skillRegistry: skillRegistry,
+    );
+    try {
+      final outcome = await orchestrator.run(
+        project: project,
+        agent: blueprint,
+        instruction: text,
+        approvalGate: approvalGate,
+        cancelToken: cancelToken,
+      );
+      final out = outcome.summary ??
+          outcome.stepOutputs.values
+              .map((e) => e.toString())
+              .where((t) => t.isNotEmpty)
+              .join('\n');
+      final result = out.isNotEmpty
+          ? out
+          : (outcome.failureReason ?? '(بدون خروجی)');
+      traces.add(ChainStepTrace(
+        role: ModelRole.agent,
+        output: _short(result),
+        note: '«$displayName» — ${outcome.run.status.name}',
+      ));
+      return result;
+    } catch (e) {
+      traces.add(ChainStepTrace(
+        role: ModelRole.agent,
+        output: '',
+        note: 'اجرای ایجنت ناموفق بود',
+      ));
+      return null;
+    }
+  }
+
+  Future<String?> _complete(
+    List<ChainStepTrace> traces,
+    ModelDefinition? def,
+    AgentProject project,
+    String text, {
+    required bool coder,
+  }) async {
+    final role = coder ? ModelRole.coder : ModelRole.llm;
+    ModelProvider? provider;
+    ModelConfig? config;
+    String? name;
+    String system = '';
+    if (def != null) {
+      provider = providerFor(def);
+      config = ModelConfig(providerId: def.providerId, modelId: def.modelId);
+      name = def.name;
+      system = def.instructions;
+    } else if (project.agents.isNotEmpty) {
+      final agent = project.agents.first;
+      provider = providerForAgent(agent);
+      config = agent.model;
+      name = agent.name;
+      system = agent.systemPrompt;
+    }
+    if (provider == null || config == null) {
+      traces.add(ChainStepTrace(
+        role: role,
+        output: '',
+        note: 'مدلی برای این نقش وصل نیست',
+        skipped: true,
+      ));
+      return null;
+    }
+    if (coder && !system.toLowerCase().contains('code')) {
+      system =
+          'You are a coding model: write clean, working code and brief explanations.\n$system';
+    }
+    try {
+      final res = await provider.complete(
+        config,
+        ModelRequest(messages: [
+          if (system.isNotEmpty) ChatMessage(ChatRole.system, system),
+          ChatMessage(ChatRole.user, text),
+        ]),
+      );
+      traces.add(ChainStepTrace(
+        role: role,
+        output: _short(res.text),
+        note: 'با «$name»',
+      ));
+      return res.text;
+    } catch (e) {
+      traces.add(ChainStepTrace(
+        role: role,
+        output: '',
+        note: 'مدل خطا داد',
+      ));
+      return null;
+    }
+  }
+
+  Future<String?> _media(List<ChainStepTrace> traces, ModelDefinition? def,
+      String role, String prompt) async {
+    final media = def == null ? null : mediaFor(def);
+    if (def == null || media == null) {
+      traces.add(ChainStepTrace(
+        role: role,
+        output: '',
+        note: 'مدلی برای این نقش وصل نیست',
+        skipped: true,
+      ));
+      return null;
+    }
+    try {
+      await outputsDir.create(recursive: true);
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      if (role == ModelRole.image) {
+        final r = await media.generateImage(model: def.modelId, prompt: prompt);
+        if (r.bytes != null) {
+          final file = File('${outputsDir.path}/image-$stamp.png');
+          await file.writeAsBytes(r.bytes!, flush: true);
           traces.add(ChainStepTrace(
-            kind: kind,
-            output: res.text,
-            note: 'ترجمه با مدل پرووایدر (${(override ?? agent.model).providerId})',
+            role: role,
+            output: '🖼 ${file.path}',
+            note: 'با «${def.name}»',
           ));
-          return res.text;
-        } catch (_) {
-          // fall through to passthrough
+          return 'تصویر ساخته شد و ذخیره شد: ${file.path}';
         }
+        traces.add(ChainStepTrace(
+          role: role,
+          output: '🖼 ${r.url ?? ''}',
+          note: 'با «${def.name}»',
+        ));
+        return 'تصویر ساخته شد: ${r.url}';
       }
+      if (role == ModelRole.audio) {
+        final bytes =
+            await media.generateSpeech(model: def.modelId, input: prompt);
+        final file = File('${outputsDir.path}/audio-$stamp.mp3');
+        await file.writeAsBytes(bytes, flush: true);
+        traces.add(ChainStepTrace(
+          role: role,
+          output: '🔊 ${file.path}',
+          note: 'با «${def.name}»',
+        ));
+        return 'صدا ساخته شد و ذخیره شد: ${file.path}';
+      }
+      // video: create + a bounded poll
+      final id = await media.createVideo(model: def.modelId, prompt: prompt);
+      var status = 'queued';
+      String? url;
+      for (var i = 0; i < 8; i++) {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        final s = await media.videoStatus(id);
+        status = s.status;
+        url = s.url;
+        if (status == 'completed' || status == 'failed') break;
+      }
+      traces.add(ChainStepTrace(
+        role: role,
+        output: url != null ? '🎬 $url' : '🎬 وضعیت: $status',
+        note: 'با «${def.name}»',
+      ));
+      return url != null
+          ? 'ویدیو ساخته شد: $url'
+          : 'ساخت ویدیو شروع شد و هنوز آماده نیست (وضعیت: $status)';
+    } catch (e) {
+      traces.add(ChainStepTrace(
+        role: role,
+        output: '',
+        note: 'ساخت ناموفق بود: ${_short('$e', 120)}',
+      ));
+      return null;
     }
-    traces.add(ChainStepTrace(
-      kind: kind,
-      output: text,
-      note: 'مترجمی وصل نیست — متن بدون ترجمه رد شد',
-    ));
-    return text;
   }
 }

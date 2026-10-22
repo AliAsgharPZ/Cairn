@@ -1,122 +1,200 @@
 import 'dart:io';
 
+import 'package:cairn_app/studio/model_store.dart';
 import 'package:cairn_app/studio/pipeline_runner.dart';
 import 'package:cairn_core/cairn_core.dart';
 import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
-import 'package:cairn_training/cairn_training.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// End-to-end chain runs with REAL trained smart models (the bundled
-/// corpora) and a scripted provider for the LLM slot. Verifies the
-/// owner's architecture: detect → translate → interpret → manage →
-/// answer → translate back, with honest fallbacks when no smart
-/// model exists.
+/// Flowchart runs (v1.3) with role-based model definitions and
+/// scripted providers. Verifies the owner's architecture as roles:
+/// translator → interpreter → manager (routes) → agent OR llm →
+/// translator, honest no-model behavior, and that an agent model's
+/// lessons reach its instructions.
 void main() {
   late Directory tmp;
-  late SmartModelStore store;
-
-  Future<void> trainAll() async {
-    final lang = TextClassifier(labels: const ['fa', 'en']);
-    lang.train(langDetectCorpus, epochs: 40);
-    await store.save(SmartModel(
-      id: 'langdetect:t',
-      name: 'تشخیص زبان',
-      kind: SmartModelKind.langDetect,
-      createdAtIso: '2026-10-22T00:00:00.000Z',
-      metrics: const {},
-      payloadJson: lang.toJson(),
-    ));
-    final intent = TextClassifier(
-        labels: const ['question', 'task', 'chat', 'translate']);
-    intent.train(intentCorpus, epochs: 60);
-    await store.save(SmartModel(
-      id: 'intent:t',
-      name: 'مفسر',
-      kind: SmartModelKind.intent,
-      createdAtIso: '2026-10-22T00:00:00.000Z',
-      metrics: const {},
-      payloadJson: intent.toJson(),
-    ));
-    await store.save(SmartModel(
-      id: 'translator:t',
-      name: 'مترجم',
-      kind: SmartModelKind.translator,
-      createdAtIso: '2026-10-22T00:00:00.000Z',
-      metrics: const {},
-      payloadJson: PhraseTranslator.bundled().toJson(),
-    ));
-  }
-
-  PipelineRunner runner(List<String> script) => PipelineRunner(
-        smartStore: store,
-        providerFor: (agent, {override}) => FakeModelProvider(script),
-        registry: ToolRegistry(),
-        skillRegistry: SkillRegistry(const []),
-      );
+  late ModelStore store;
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('cairn_chain_test');
-    store = SmartModelStore(tmp);
+    tmp = await Directory.systemTemp.createTemp('cairn_flow_test');
+    store = ModelStore(tmp);
   });
 
   tearDown(() => tmp.delete(recursive: true));
 
-  test('persian question flows through the whole chain to the LLM answer',
+  Future<void> seedDefs({bool withAgent = false}) async {
+    await store.save(ModelDefinition(
+      id: 'def-translator',
+      name: 'مترجم من',
+      role: ModelRole.translator,
+      providerId: 'fake',
+      modelId: 't',
+    ));
+    await store.save(ModelDefinition(
+      id: 'def-interpreter',
+      name: 'مفسر من',
+      role: ModelRole.interpreter,
+      providerId: 'fake',
+      modelId: 'i',
+    ));
+    await store.save(ModelDefinition(
+      id: 'def-llm',
+      name: 'مدل زبانی من',
+      role: ModelRole.llm,
+      providerId: 'fake',
+      modelId: 'l',
+    ));
+    if (withAgent) {
+      await store.save(ModelDefinition(
+        id: 'def-agent',
+        name: 'ایجنت فایل',
+        role: ModelRole.agent,
+        providerId: 'fake',
+        modelId: 'a',
+        instructions: 'You handle files.',
+        lessons: [
+          AgentLesson(title: 'پاک‌کردن', details: 'اول سطل آشغال، بعد حذف'),
+        ],
+      ));
+    }
+  }
+
+  PipelineRunner runner({
+    required Map<String, List<String>> Function() scripts,
+  }) {
+    return PipelineRunner(
+      models: store,
+      providerFor: (def) =>
+          FakeModelProvider(scripts()[def.role] ?? const ['ok']),
+      providerForAgent: (_) => null,
+      mediaFor: (_) => null,
+      registry: ToolRegistry(),
+      skillRegistry: SkillRegistry(const []),
+      outputsDir: Directory('${tmp.path}/outputs'),
+    );
+  }
+
+  test('persian question: translate → interpret → manager → llm → translate back',
       () async {
-    await trainAll();
+    await seedDefs();
+    var translatorCalls = 0;
+    final r = runner(scripts: () {
+      translatorCalls++;
+      return {
+        ModelRole.translator: [
+          translatorCalls == 1
+              ? 'Where is the capital of France?'
+              : 'پایتخت فرانسه پاریس است.',
+        ],
+        ModelRole.interpreter: ['question'],
+        ModelRole.llm: ['Paris is the capital of France.'],
+      };
+    });
     final project = buildChainDefaultProject();
-    final result = await runner(['Paris is the capital of France.']).run(
+    final result = await r.run(
       project: project,
       input: 'پایتخت فرانسه کجاست؟',
       approvalGate: (_) async => true,
     );
     expect(result.detectedLang, 'fa');
     expect(result.intent, 'question');
-    expect(result.finalText, contains('Paris'));
-    final kinds = result.traces.map((t) => t.kind).toList();
-    expect(kinds, containsAllInOrder([
-      PipelineKind.detect,
-      PipelineKind.translateIn,
-      PipelineKind.interpret,
-      PipelineKind.manage,
-      PipelineKind.answer,
-    ]));
+    expect(result.finalText, 'پایتخت فرانسه پاریس است.');
+    final agentTrace =
+        result.traces.firstWhere((t) => t.role == ModelRole.agent);
+    expect(agentTrace.skipped, isTrue,
+        reason: 'manager routed a question away from the agent');
+    final roles = result.traces.map((t) => t.role).toList();
+    expect(
+        roles,
+        containsAllInOrder([
+          ModelRole.translator,
+          ModelRole.interpreter,
+          ModelRole.manager,
+          ModelRole.llm,
+        ]));
   });
 
-  test('english chat skips translation and answers directly', () async {
-    await trainAll();
-    final project = buildChainDefaultProject();
-    final result = await runner(['I am fine, thank you!']).run(
-      project: project,
-      input: 'Hello, how are you?',
-      approvalGate: (_) async => true,
-    );
-    expect(result.detectedLang, 'en');
-    expect(result.intent, 'chat');
-    expect(result.finalText, 'I am fine, thank you!');
-  });
-
-  test('without any models the chain runs on labeled fallbacks only',
-      () async {
-    final project = buildChainDefaultProject();
-    final bare = PipelineRunner(
-      smartStore: store,
-      providerFor: (agent, {override}) => null, // nothing configured
+  test('persian task reaches the agent model, lessons included', () async {
+    await seedDefs(withAgent: true);
+    const normalize =
+        '{"goal": "Delete the file", "language": "en", "inputs": [], "constraints": []}';
+    const plan =
+        '{"steps": [{"description": "Handle it", "kind": "model"}]}';
+    const verify = '{"done": true, "summary": "Goal achieved"}';
+    String? seenSystem;
+    final r = PipelineRunner(
+      models: store,
+      providerFor: (def) {
+        if (def.role == ModelRole.agent) {
+          return _CapturingProvider(
+            [normalize, plan, 'working on it', verify],
+            onRequest: (req) {
+              for (final m in req.messages) {
+                if (m.role == ChatRole.system) seenSystem = m.content;
+              }
+            },
+          );
+        }
+        return FakeModelProvider(const ['task']);
+      },
+      providerForAgent: (_) => null,
+      mediaFor: (_) => null,
       registry: ToolRegistry(),
       skillRegistry: SkillRegistry(const []),
+      outputsDir: Directory('${tmp.path}/outputs'),
     );
+    final project = buildChainDefaultProject();
+    final result = await r.run(
+      project: project,
+      input: 'این فایل را پاک کن',
+      approvalGate: (_) async => true,
+    );
+    expect(result.intent, 'task');
+    final agentTrace =
+        result.traces.firstWhere((t) => t.role == ModelRole.agent);
+    expect(agentTrace.skipped, isFalse);
+    expect(seenSystem, isNotNull);
+    expect(seenSystem, contains('پاک‌کردن'),
+        reason: 'the lesson the owner taught must reach the agent');
+  });
+
+  test('no models at all: honest passthrough, nothing fabricated', () async {
+    final r = runner(scripts: () => const {});
+    final bare = PipelineRunner(
+      models: store,
+      providerFor: (_) => null,
+      providerForAgent: (_) => null,
+      mediaFor: (_) => null,
+      registry: ToolRegistry(),
+      skillRegistry: SkillRegistry(const []),
+      outputsDir: Directory('${tmp.path}/outputs'),
+    );
+    expect(r, isNotNull);
+    final project = buildChainDefaultProject();
     final result = await bare.run(
       project: project,
       input: 'پایتخت فرانسه کجاست؟',
       approvalGate: (_) async => true,
     );
-    expect(result.detectedLang, 'fa'); // script heuristic
+    expect(result.detectedLang, 'fa');
     expect(result.intent, 'question'); // ؟ heuristic
-    // No translator, no LLM: the chain must NOT fabricate an answer.
-    expect(result.finalText, isEmpty);
-    // The fallbacks announce themselves honestly in the trace.
+    expect(result.finalText, 'پایتخت فرانسه کجاست؟'); // untouched
     final notes = result.traces.map((t) => t.note ?? '').join(' ');
     expect(notes, contains('وصل نیست'));
   });
+}
+
+/// A FakeModelProvider that also reports the requests it saw.
+class _CapturingProvider extends FakeModelProvider {
+  _CapturingProvider(super.script, {required this.onRequest});
+
+  final void Function(ModelRequest) onRequest;
+
+  @override
+  Future<ModelResponse> complete(
+      ModelConfig config, ModelRequest request) async {
+    onRequest(request);
+    return super.complete(config, request);
+  }
 }

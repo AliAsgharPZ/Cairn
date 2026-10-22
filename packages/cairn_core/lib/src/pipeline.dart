@@ -1,105 +1,81 @@
 import 'ids.dart';
+import 'model_definition.dart';
 
-/// One step of a project's processing CHAIN (v1.2) — the owner's
-/// architecture made concrete: a project is not one agent in a box,
-/// it is a line of specialized models and agents connected in order:
+/// One step of a project's FLOWCHART (v1.3; v1.2's fixed chain,
+/// generalized per the owner's direction).
 ///
-///   input → detect language → translate (if needed) → interpret →
-///   manager routes → agent(s) do tasks / LLM answers → translate back
-///
-/// Each step names its kind and, where a model is involved, WHICH
-/// model fills the slot ([modelRef] = a smart-model id from the
-/// training store, or '' = the default for that kind / the project
-/// agent's provider model). Any slot can later be re-pointed at a
-/// bigger external model (e.g. Gemma via Ollama) without touching
-/// the chain — that replaceability was the owner's explicit ask.
+/// The owner defines the flowchart: steps are added, removed and
+/// reordered freely. Each step names a ROLE ([ModelRole]); at run
+/// time the step is executed by the model definition bound to it
+/// ([modelDefId]), or by the default model of that role when unbound
+/// ('' = automatic). Any open-source model or AI API can fill any
+/// role — the flowchart never names a vendor.
 class PipelineStep {
   PipelineStep({
     String? id,
-    required this.kind,
-    this.modelRef = '',
-    this.agentId = '',
+    required this.role,
+    this.modelDefId = '',
     this.enabled = true,
   }) : id = id ?? newId();
 
   final String id;
 
-  /// One of [PipelineKind].
-  String kind;
+  /// One of [ModelRole].
+  String role;
 
-  /// Smart-model id for model steps; '' = default binding.
-  String modelRef;
-
-  /// For kind 'agent': which of the project's agents runs.
-  String agentId;
+  /// The bound [ModelDefinition] id; '' = automatic for the role.
+  String modelDefId;
 
   bool enabled;
 
   Map<String, Object?> toJson() => {
         'id': id,
-        'kind': kind,
-        'modelRef': modelRef,
-        'agentId': agentId,
+        'role': role,
+        'modelDefId': modelDefId,
         'enabled': enabled,
       };
 
-  factory PipelineStep.fromJson(Map<String, Object?> json) => PipelineStep(
-        id: json['id'] as String?,
-        kind: json['kind'] as String? ?? PipelineKind.answer,
-        modelRef: json['modelRef'] as String? ?? '',
-        agentId: json['agentId'] as String? ?? '',
-        enabled: json['enabled'] as bool? ?? true,
-      );
+  factory PipelineStep.fromJson(Map<String, Object?> json) {
+    // v1.2 steps stored kind/modelRef/agentId. Map them forward:
+    // detect folded into the runner (language is detected internally
+    // now, it is not a role), translateIn/translateBack both become
+    // the translator role, answer becomes the LLM role.
+    final legacyKind = json['kind'] as String?;
+    var role = json['role'] as String? ?? '';
+    if (role.isEmpty && legacyKind != null) {
+      role = switch (legacyKind) {
+        'translateIn' || 'translateBack' => ModelRole.translator,
+        'interpret' => ModelRole.interpreter,
+        'manage' => ModelRole.manager,
+        'agent' => ModelRole.agent,
+        'answer' => ModelRole.llm,
+        'detect' => '',
+        _ => ModelRole.llm,
+      };
+    }
+    return PipelineStep(
+      id: json['id'] as String?,
+      role: role,
+      modelDefId: (json['modelDefId'] as String?) ??
+          (json['modelRef'] as String? ?? ''),
+      enabled: json['enabled'] as bool? ?? true,
+    );
+  }
+
+  /// v1.2 kind names, kept for the (few) places that still speak
+  /// them during migration. New code uses [role].
+  static const String kindDetect = 'detect';
 }
 
-/// The step kinds of the owner's chain, in their canonical order.
-class PipelineKind {
-  /// Head of the chain: detects the input language (fa/en).
-  static const String detect = 'detect';
-
-  /// Translates the input to English when it is not English.
-  static const String translateIn = 'translateIn';
-
-  /// Interprets the request: what does the user want (intent)?
-  static const String interpret = 'interpret';
-
-  /// The manager: routes by intent — task → agent step, question /
-  /// chat → answer step, translate → the translation is the answer.
-  /// A routing brain (rules over the interpreter's output), not a
-  /// generative model; the UI says so plainly.
-  static const String manage = 'manage';
-
-  /// Runs one of the project's agents (tools, skills, memory).
-  static const String agent = 'agent';
-
-  /// Produces a text answer with the LLM slot.
-  static const String answer = 'answer';
-
-  /// Translates the final answer back to the user's language.
-  static const String translateBack = 'translateBack';
-
-  static const List<String> order = [
-    detect,
-    translateIn,
-    interpret,
-    manage,
-    agent,
-    answer,
-    translateBack,
-  ];
-}
-
-/// The default chain, exactly as the owner specified it (2026-10-22):
-/// language detector at the head; translator when needed; an
-/// interpreter; a manager that routes and schedules; an English LLM
-/// for answers, translated back to Persian for the user; and the
-/// project's agents for software work.
-List<PipelineStep> defaultPipeline({String firstAgentId = ''}) => [
-      PipelineStep(kind: PipelineKind.detect),
-      PipelineStep(kind: PipelineKind.translateIn),
-      PipelineStep(kind: PipelineKind.interpret),
-      PipelineStep(kind: PipelineKind.manage),
-      PipelineStep(kind: PipelineKind.agent, agentId: firstAgentId),
-      PipelineStep(kind: PipelineKind.answer),
-      PipelineStep(kind: PipelineKind.translateBack),
+/// The default flowchart (v1.3): the owner's line, expressed in
+/// roles — interpreter understands, manager routes, the agent works,
+/// the LLM answers, the translator carries text across languages at
+/// both ends. Steps can be rearranged or removed by the owner.
+List<PipelineStep> defaultPipeline() => [
+      PipelineStep(role: ModelRole.translator),
+      PipelineStep(role: ModelRole.interpreter),
+      PipelineStep(role: ModelRole.manager),
+      PipelineStep(role: ModelRole.agent),
+      PipelineStep(role: ModelRole.llm),
+      PipelineStep(role: ModelRole.translator),
     ];
