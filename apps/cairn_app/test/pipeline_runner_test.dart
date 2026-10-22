@@ -122,7 +122,7 @@ void main() {
     const plan =
         '{"steps": [{"description": "Handle it", "kind": "model"}]}';
     const verify = '{"done": true, "summary": "Goal achieved"}';
-    String? seenSystem;
+    final seenSystems = StringBuffer();
     final r = PipelineRunner(
       models: store,
       providerFor: (def) {
@@ -131,7 +131,9 @@ void main() {
             [normalize, plan, 'working on it', verify],
             onRequest: (req) {
               for (final m in req.messages) {
-                if (m.role == ChatRole.system) seenSystem = m.content;
+                if (m.role == ChatRole.system) {
+                  seenSystems.writeln(m.content);
+                }
               }
             },
           );
@@ -154,9 +156,10 @@ void main() {
     final agentTrace =
         result.traces.firstWhere((t) => t.role == ModelRole.agent);
     expect(agentTrace.skipped, isFalse);
-    expect(seenSystem, isNotNull);
-    expect(seenSystem, contains('پاک‌کردن'),
+    expect(seenSystems.toString(), contains('پاک‌کردن'),
         reason: 'the lesson the owner taught must reach the agent');
+    expect(seenSystems.toString(), contains('You handle files.'),
+        reason: 'the agent model instructions must reach the agent');
   });
 
   test('no models at all: honest passthrough, nothing fabricated', () async {
