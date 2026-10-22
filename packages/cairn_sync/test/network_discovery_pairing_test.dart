@@ -5,6 +5,7 @@ import 'package:cairn_sync/cairn_sync.dart';
 import 'package:test/test.dart';
 
 void main() {
+  _networkClassificationTests();
   group('network info', () {
     test('enumerates LAN addresses without throwing', () async {
       final addresses = await lanIpv4Addresses();
@@ -196,6 +197,39 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(paired, isFalse);
+    });
+  });
+}
+
+void _networkClassificationTests() {
+  group('interface classification (v1.3: mobile data is not a LAN)', () {
+    test('cellular interfaces are recognized', () {
+      for (final name in [
+        'rmnet_data0',
+        'rmnet0',
+        'ccmni0',
+        'pdp_ip0',
+        'wwan0',
+        'Cellular',
+      ]) {
+        expect(classifyInterfaceName(name), IfaceKind.cellular,
+            reason: name);
+      }
+    });
+    test('wifi and ethernet are LAN', () {
+      for (final name in ['wlan0', 'Wi-Fi', 'eth0', 'Ethernet', 'en0']) {
+        expect(classifyInterfaceName(name), IfaceKind.lan, reason: name);
+      }
+    });
+    test('tunnels are VPN', () {
+      for (final name in ['tun0', 'wg0', 'utun3', 'Tailscale']) {
+        expect(classifyInterfaceName(name), IfaceKind.vpn, reason: name);
+      }
+    });
+    test('unknown names are other', () {
+      expect(classifyInterfaceName('{9F3A2B10-1111-2222-3333-444455556666}'),
+          IfaceKind.other);
+      expect(classifyInterfaceName('dummy0'), IfaceKind.other);
     });
   });
 }

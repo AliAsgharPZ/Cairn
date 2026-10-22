@@ -74,7 +74,8 @@ List<_Destination> _destinations(S s) => [
   _Destination(s.settings, Icons.settings_outlined),
 ];
 
-class _StudioShellState extends State<StudioShell> {
+class _StudioShellState extends State<StudioShell>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   AgentProject? _selectedProject;
   List<ProviderConfig> _providerConfigs = const [];
@@ -86,18 +87,24 @@ class _StudioShellState extends State<StudioShell> {
   bool _syncing = false;
   Timer? _autoSyncTimer;
 
-  /// Pages slide between destinations (the shell's main animation);
-  /// every page is kept alive, so sliding away never loses work.
-  final PageController _pageController = PageController();
+  /// Tab switching (v1.3): the owner disliked the PageView slide, so
+  /// pages now cross-fade quickly (170ms) via this controller while an
+  /// IndexedStack keeps every page mounted — switching never loses
+  /// in-progress work (the v1 trained-model lesson).
+  late final AnimationController _fadeController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 170),
+    value: 1,
+  );
+  late final Animation<double> _fadeAnimation =
+      Tween<double>(begin: 0.82, end: 1).animate(
+    CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+  );
 
   void _goTo(int index) {
     if (index == _index) return;
     setState(() => _index = index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 340),
-      curve: Curves.easeOutCubic,
-    );
+    _fadeController.forward(from: 0);
   }
 
   @override
@@ -115,7 +122,7 @@ class _StudioShellState extends State<StudioShell> {
   @override
   void dispose() {
     _autoSyncTimer?.cancel();
-    _pageController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -195,20 +202,20 @@ class _StudioShellState extends State<StudioShell> {
     _goTo(1); // editor destination
   }
 
-  /// Screens live in a [PageView] whose pages are kept alive
-  /// ([_KeepAlivePage]): sliding between tabs animates, and must never
-  /// destroy in-progress work (a trained-but-unregistered model, a
-  /// half-filled form). A plain switch used to rebuild the selected
-  /// screen from scratch on every tab change, silently discarding the
-  /// in-memory trained model — the dead end the owner hit on
-  /// 2026-10-21. Swiping is disabled; only the nav controls move pages,
-  /// so the selected destination and the visible page never desync.
+  /// Screens live in an [IndexedStack]: every page stays mounted, so
+  /// switching tabs never destroys in-progress work (a trained-but-
+  /// unregistered model, a half-filled form — the dead end the owner
+  /// hit on 2026-10-21). The PageView slide is gone (owner disliked
+  /// it); a short cross-fade rides on [_fadeAnimation] instead, and
+  /// the stack element itself never remounts, so page state is safe.
   Widget _body() {
-    return PageView(
-      controller: _pageController,
-      physics: const NeverScrollableScrollPhysics(),
-      onPageChanged: (i) => setState(() => _index = i),
-      children: [
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) =>
+          Opacity(opacity: _fadeAnimation.value, child: child),
+      child: IndexedStack(
+        index: _index,
+        children: [
         _KeepAlivePage(
           child: ProjectsScreen(
             store: widget.store,
@@ -264,7 +271,8 @@ class _StudioShellState extends State<StudioShell> {
             toolRegistry: widget.registry,
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -282,6 +290,13 @@ class _StudioShellState extends State<StudioShell> {
   /// the filled pill grows, the icon pops, the label fades/slides in.
   Widget _capsuleNav(BuildContext context, List<_Destination> destinations) {
     final scheme = Theme.of(context).colorScheme;
+    // v1.3 REGRESSION FIX: v1.2 wrapped the pill in a Center inside
+    // Scaffold.bottomNavigationBar. The bottom bar is laid out with
+    // unbounded height, so Center expanded to the FULL screen height:
+    // the body collapsed to zero (blank page) and the pill rendered
+    // in the middle of the screen — exactly what the owner reported.
+    // A Row sizes to its tallest child instead; never put Center/
+    // Align-sized widgets in a bottom bar.
     return SafeArea(
       top: false,
       child: Padding(
@@ -291,10 +306,13 @@ class _StudioShellState extends State<StudioShell> {
           CairnSpacing.md,
           CairnSpacing.sm,
         ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Container(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Container(
               height: 62,
               decoration: BoxDecoration(
                 color: scheme.surface,
@@ -388,8 +406,10 @@ class _StudioShellState extends State<StudioShell> {
                     ),
                 ],
               ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

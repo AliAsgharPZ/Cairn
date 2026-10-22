@@ -60,6 +60,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
   // Networking (M11).
   List<String> _lanIps = const [];
+  LanState _lanState = LanState.offline;
   bool _visible = true;
   SyncServer? _server;
   bool _syncServerOn = false;
@@ -155,9 +156,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
   Future<void> _refreshNetwork() async {
     final ips = await lanIpv4Addresses();
+    final state = await lanState();
     if (mounted) {
       setState(() {
         _lanIps = ips;
+        _lanState = state;
       });
     }
   }
@@ -544,12 +547,24 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 Row(
                   children: [
                     Icon(
-                      onLan ? Icons.wifi : Icons.wifi_off,
-                      color: onLan ? Colors.green : theme.colorScheme.error,
+                      onLan
+                          ? Icons.wifi
+                          : (_lanState == LanState.cellularOnly
+                              ? Icons.signal_cellular_alt
+                              : Icons.wifi_off),
+                      color: onLan
+                          ? Colors.green
+                          : (_lanState == LanState.cellularOnly
+                              ? Colors.orange
+                              : theme.colorScheme.error),
                     ),
                     const SizedBox(width: CairnSpacing.sm),
                     Expanded(
-                      child: Text(onLan ? s.netConnected : s.netOffline),
+                      child: Text(onLan
+                          ? s.netConnected
+                          : (_lanState == LanState.cellularOnly
+                              ? s.netCellularOnly
+                              : s.netOffline)),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh),

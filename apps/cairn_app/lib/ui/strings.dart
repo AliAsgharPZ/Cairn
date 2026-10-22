@@ -216,6 +216,9 @@ class S {
   String get netOffline => fa
       ? 'به هیچ شبکه‌ای وصل نیستی — وای‌فای را روشن کن و به همان شبکهٔ دستگاه دیگر وصل شو.'
       : 'Not connected to any network — turn on Wi-Fi and join the same network as your other device.';
+  String get netCellularOnly => fa
+      ? 'فقط اینترنت همراه (موبایل‌دیتا) داری — این شبکهٔ محلی نیست و دستگاه‌های دیگرت از این راه پیدا نمی‌شوند. به وای‌فای وصل شو.'
+      : 'You only have mobile data — that is not a local network and your other devices cannot be found through it. Join a Wi-Fi network.';
   String netYourAddress(String ip) =>
       fa ? 'نشانی این دستگاه در شبکه: $ip' : 'This device’s network address: $ip';
   String get netServersOn => fa
