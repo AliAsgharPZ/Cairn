@@ -140,6 +140,43 @@ class S {
       : 'Run events (plan, steps, approvals) appear here live.';
 
   // Devices & sync (inside Settings)
+  String get netTitle => fa ? 'وضعیت شبکه' : 'Network';
+  String get netConnected =>
+      fa ? 'متصل به شبکهٔ محلی' : 'Connected to a local network';
+  String get netOffline => fa
+      ? 'به هیچ شبکه‌ای وصل نیستی — وای‌فای را روشن کن و به همان شبکهٔ دستگاه دیگر وصل شو.'
+      : 'Not connected to any network — turn on Wi-Fi and join the same network as your other device.';
+  String netYourAddress(String ip) =>
+      fa ? 'نشانی این دستگاه در شبکه: $ip' : 'This device’s network address: $ip';
+  String get netServersOn => fa
+      ? 'سرویس‌های شبکه روشن‌اند: این دستگاه دیده می‌شود و به دستگاه‌های جفت‌شده پاسخ می‌دهد.'
+      : 'Network services are on: this device is discoverable and answers paired devices.';
+  String get netVisible =>
+      fa ? 'دیده‌شدن در شبکه' : 'Visible on the network';
+  String get netVisibleSub => fa
+      ? 'روشن باشد تا دستگاه‌های دیگرت تو را خودکار پیدا کنند و سینک خودکار کار کند. خاموشش کنی، هیچ‌کس در شبکه تو را نمی‌بیند.'
+      : 'Keep on so your other devices find this one automatically and auto-sync works. Off means invisible on the network.';
+  String get nearbyTitle => fa ? 'دستگاه‌های اطراف' : 'Nearby devices';
+  String get nearbyNone => fa
+      ? 'هنوز دستگاهی پیدا نشده — اپ را روی دستگاه دیگرت هم باز کن و چند ثانیه صبر کن.'
+      : 'No device found yet — open the app on your other device too and wait a few seconds.';
+  String get pairAction => fa ? 'جفت کردن' : 'Pair';
+  String get pairedBadge => fa ? 'جفت‌شده' : 'Paired';
+  String get pairingSasTitle => fa ? 'کد امنیتی جفت‌شدن' : 'Pairing security code';
+  String pairingSasBody(String name, String sas) => fa
+      ? 'دستگاه «$name» می‌خواهد جفت شود. اگر روی صفحهٔ آن دستگاه هم دقیقاً همین کد دیده می‌شود، تأیید کن:'
+      : '“$name” wants to pair. If that device shows exactly this code too, confirm:';
+  String pairingIncoming(String name) => fa
+      ? 'درخواست جفت‌شدن از «$name»'
+      : 'Pairing request from “$name”';
+  String get accept => fa ? 'تأیید و جفت‌کردن' : 'Accept & pair';
+  String get reject => fa ? 'رد کردن' : 'Reject';
+  String get pairingRejected =>
+      fa ? 'جفت‌شدن رد شد یا لغو شد.' : 'Pairing was rejected or cancelled.';
+  String pairingFailed(String e) =>
+      fa ? 'جفت‌شدن ناموفق بود: $e' : 'Pairing failed: $e';
+  String get manualPairTitle =>
+      fa ? 'جفت‌کردن دستی (روش قدیمی، بدون کشف شبکه)' : 'Manual pairing (legacy, no discovery)';
   String dInvalidOffer(String m) =>
       fa ? 'پیشنهاد نامعتبر است: $m' : 'Invalid offer: $m';
   String get dPaired => fa ? 'دستگاه جفت شد.' : 'Device paired.';
