@@ -48,6 +48,36 @@ class PhraseTranslator {
   factory PhraseTranslator.bundled() =>
       PhraseTranslator.build(translationPairCorpus);
 
+  /// The same normalization as [_norm] but WITHOUT lowercasing, so
+  /// untranslated words can pass through with their original case
+  /// ("Paris" must never come back as "paris"). Word counts align
+  /// 1:1 with the normalized form by construction.
+  static String _normKeepCase(String s) => s
+      .replaceAll('ي', 'ی')
+      .replaceAll('ك', 'ک')
+      .replaceAll('ة', 'ه')
+      .replaceAll('ؤ', 'و')
+      .replaceAll('إ', 'ا')
+      .replaceAll('أ', 'ا')
+      .replaceAll('\u0640', '')
+      .replaceAll('\u200c', ' ')
+      .replaceAll(RegExp(r'[\u064b-\u0652]'), '')
+      .replaceAll(RegExp(r'[؟?]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// Sentence case: when the source starts with a capital letter,
+  /// the translation does too.
+  static String _matchCase(String source, String result) {
+    final s = source.trimLeft();
+    if (s.isEmpty || result.isEmpty) return result;
+    final first = s[0];
+    if (first.toUpperCase() == first && first.toLowerCase() != first) {
+      return result[0].toUpperCase() + result.substring(1);
+    }
+    return result;
+  }
+
   /// How much of the input the tables actually covered (0..1) — the
   /// UI shows this so a mostly-passthrough "translation" is never
   /// dressed up as a real one.
@@ -57,9 +87,11 @@ class PhraseTranslator {
     final lexicon = toEnglish ? _lexFaEn : _lexEnFa;
     final normalized = _norm(input);
     final exact = table[normalized];
-    if (exact != null) return (text: exact, coverage: 1.0);
+    if (exact != null) return (text: _matchCase(input, exact), coverage: 1.0);
 
     final words = normalized.split(' ').where((w) => w.isNotEmpty).toList();
+    final rawWords =
+        _normKeepCase(input).split(' ').where((w) => w.isNotEmpty).toList();
     final out = <String>[];
     var covered = 0;
     var i = 0;
@@ -89,12 +121,13 @@ class PhraseTranslator {
         if (w.isNotEmpty) out.add(w);
         covered++;
       } else {
-        out.add(word); // unknown: pass through, honestly uncovered
+        // Unknown: pass through with the ORIGINAL case preserved.
+        out.add(i < rawWords.length ? rawWords[i] : word);
       }
       i++;
     }
     return (
-      text: out.join(' '),
+      text: _matchCase(input, out.join(' ')),
       coverage: words.isEmpty ? 0 : covered / words.length,
     );
   }
