@@ -51,7 +51,8 @@ class DevicesScreen extends StatefulWidget {
   State<DevicesScreen> createState() => _DevicesScreenState();
 }
 
-class _DevicesScreenState extends State<DevicesScreen> {
+class _DevicesScreenState extends State<DevicesScreen>
+    with WidgetsBindingObserver {
   DeviceKeyPair? _identity;
   String _displayName = '';
   List<PairedDevice> _paired = const [];
@@ -85,14 +86,31 @@ class _DevicesScreenState extends State<DevicesScreen> {
   final TextEditingController _diskController = TextEditingController();
   bool _hasGpu = false;
 
+  Timer? _netTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    // v1.3.1 fix (owner: "connected to nothing, still says
+    // connected"): the network state used to be computed ONCE at
+    // startup and never refreshed, while this screen stays alive in
+    // the shell — so turning Wi-Fi/data off left a stale "connected"
+    // card forever. Recompute every few seconds and on app resume.
+    _netTimer = Timer.periodic(
+        const Duration(seconds: 3), (_) => _refreshNetwork());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshNetwork();
   }
 
   @override
   void dispose() {
+    _netTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _discoverySub?.cancel();
     _discovery?.close();
     _pairingServer?.close();

@@ -109,11 +109,24 @@ Future<List<NetAddress>> classifiedAddresses() async {
   ];
 }
 
+bool _isTailscaleRange(String ip) {
+  final parts = ip.split('.').map(int.tryParse).toList();
+  if (parts.length != 4 || parts.any((p) => p == null)) return false;
+  return parts[0] == 100 && parts[1]! >= 64 && parts[1]! <= 127;
+}
+
 /// Does an address put the device on a reachable local network?
-bool _isLanUsable(NetAddress a) {
+///
+/// v1.3.1 tightening, from the owner's second report ("connected to
+/// nothing, still says connected"): a generic VPN tunnel (tun0 from
+/// any VPN app) is NOT the owner's local network and no longer counts
+/// on its own — only a Tailscale-style mesh address (100.64.0.0/10)
+/// does, because those addresses name the owner's own devices.
+bool isLanUsable(NetAddress a) {
   if (_isLinkLocal(a.ip)) return false; // no DHCP — half-broken
   return switch (a.kind) {
-    IfaceKind.lan || IfaceKind.vpn => true,
+    IfaceKind.lan => true,
+    IfaceKind.vpn => _isTailscaleRange(a.ip),
     IfaceKind.other => _isPrivate(a.ip),
     IfaceKind.cellular => false,
   };
@@ -122,7 +135,7 @@ bool _isLanUsable(NetAddress a) {
 /// The device's LAN state: offline / cellular-only / on a LAN.
 Future<LanState> lanState() async {
   final all = await classifiedAddresses();
-  if (all.any(_isLanUsable)) return LanState.lan;
+  if (all.any(isLanUsable)) return LanState.lan;
   if (all.any((a) => a.kind == IfaceKind.cellular && !_isLinkLocal(a.ip))) {
     return LanState.cellularOnly;
   }
@@ -135,7 +148,7 @@ Future<LanState> lanState() async {
 Future<List<String>> lanIpv4Addresses() async {
   final usable = [
     for (final a in await classifiedAddresses())
-      if (_isLanUsable(a)) a,
+      if (isLanUsable(a)) a,
   ];
   usable.sort((a, b) => _rank(a).compareTo(_rank(b)));
   return [for (final a in usable) a.ip];

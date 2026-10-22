@@ -232,4 +232,35 @@ void _networkClassificationTests() {
       expect(classifyInterfaceName('dummy0'), IfaceKind.other);
     });
   });
+
+  group('LAN usability (v1.3.1: a VPN tunnel is not your home network)',
+      () {
+    NetAddress a(String ip, IfaceKind kind) => NetAddress(ip, 'x', kind);
+
+    test('a generic VPN tunnel address does NOT make a LAN', () {
+      // Any VPN app (tun0) hands out 10.x / 172.16.x addresses; the
+      // owner standing on VPN-only is NOT on a local network.
+      expect(isLanUsable(a('10.8.0.2', IfaceKind.vpn)), isFalse);
+      expect(isLanUsable(a('172.16.0.5', IfaceKind.vpn)), isFalse);
+      expect(isLanUsable(a('192.168.1.5', IfaceKind.vpn)), isFalse);
+    });
+
+    test('a Tailscale-range mesh address DOES count', () {
+      expect(isLanUsable(a('100.64.1.9', IfaceKind.vpn)), isTrue);
+      expect(isLanUsable(a('100.127.0.1', IfaceKind.vpn)), isTrue);
+      expect(isLanUsable(a('100.128.0.1', IfaceKind.vpn)), isFalse);
+    });
+
+    test('cellular never counts, link-local never counts', () {
+      expect(isLanUsable(a('10.20.30.40', IfaceKind.cellular)), isFalse);
+      expect(isLanUsable(a('169.254.1.1', IfaceKind.lan)), isFalse);
+      expect(isLanUsable(a('169.254.1.1', IfaceKind.other)), isFalse);
+    });
+
+    test('wifi counts; unknown interfaces need a private address', () {
+      expect(isLanUsable(a('192.168.0.23', IfaceKind.lan)), isTrue);
+      expect(isLanUsable(a('192.168.0.23', IfaceKind.other)), isTrue);
+      expect(isLanUsable(a('8.8.8.8', IfaceKind.other)), isFalse);
+    });
+  });
 }
