@@ -4,6 +4,12 @@
    No shadows anywhere — tonal ladder + hairlines only. */
 
 @font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
   font-family: "Arad";
   src: url("/fonts/Arad-Regular.ttf") format("truetype");
   font-weight: 400;
@@ -46,11 +52,15 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  font-family: "Arad", Tahoma, sans-serif;
+  font-family: "Inter", "Arad", Tahoma, sans-serif;
   background: var(--canvas-soft);
   color: var(--ink);
-  line-height: 1.9;
+  line-height: 1.75;
   font-size: 17px;
+}
+html[lang="fa"] body {
+  font-family: "Arad", Tahoma, sans-serif;
+  line-height: 1.9;
 }
 
 .wrap {
@@ -91,8 +101,11 @@ a:hover { text-decoration: underline; }
   color: var(--brand-mark);
   direction: ltr;
 }
-.topbar nav { display: flex; gap: 22px; }
+.topbar nav { display: flex; gap: 22px; align-items: center; }
 .topbar nav a { color: var(--ink-deep); font-size: 15.5px; }
+.gh-link { display: inline-flex; align-items: center; }
+.gh-link:hover { color: var(--brand-mark); text-decoration: none; }
+.gh-btn { display: inline-flex; align-items: center; gap: 8px; }
 @media (max-width: 560px) {
   .topbar nav a:not(:last-child) { display: none; }
 }
@@ -260,3 +273,6 @@ footer {
 }
 footer a { color: var(--accent-gold-soft); }
 footer .wordmark { font-size: 20px; }
+.foot-links { display: inline-flex; gap: 18px; align-items: center; margin-inline-start: auto; }
+footer .gh-link { color: #e9e7e4; }
+footer .gh-link:hover { color: var(--accent-gold-soft); }
