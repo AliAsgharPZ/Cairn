@@ -363,3 +363,43 @@ state hardware limits instead of pretending foundation-scale training.
   Honest remainders: training screen dynamic status sentences are Persian-only;
   Flow-1 voice input still unscheduled (post-v1); named-pipe Tool Host
   transport remains an unverified experimental option (stdio is shipped).
+
+## v1.2.0 (in delivery) — networking that works, unified projects, the chain
+
+Owner feedback on v1.1.5 (2026-10-22): networking "doesn't work at all"
+(no connection status, no visible IP, manual copy-paste pairing, servers
+off by default), a capsule-navbar display bug on Android, a confusing
+structure (why is the agent a separate section? a project of models +
+agents cannot be wired together), and the model chain as the top
+priority: language detector → translator (fa/en) → interpreter →
+manager → English LLM → software agents — with the first models trained
+for real.
+
+- M11 networking (cairn_sync): interface enumeration (connection status
+  + own LAN IP), UDP broadcast discovery (port 47802), LAN pairing with
+  mutual SAS on port 47803 (no more paste/typed IPs as the main flow).
+  Devices screen rebuilt: network status card, nearby-devices list with
+  one-tap pairing, incoming-pairing card, servers + discovery +
+  pairing listener auto-start behind a visibility switch, paired
+  endpoints auto-updated from discovery. Tests: pairing handshake
+  (match/reject/abort) + discovery logic green locally; the live-UDP
+  test self-skips only in UDP-dropping sandboxes and runs on CI.
+- Capsule nav: overflow-proof cells (FittedBox + ellipsis + width cap),
+  SafeArea(top:false), soft shadow, animated selection (pill growth,
+  icon pop, label size animation); staggered fade/slide list entrances.
+- M12 unified structure: AgentProject.pipeline (PipelineStep kinds
+  detect/translateIn/interpret/manage/agent/answer/translateBack, each
+  with a replaceable modelRef). Tabs are now Projects / Project /
+  Run / Models / Settings; the Project tab is a workspace with the
+  chain view (per-step model/agent pickers) and the agent editor.
+  Console gained a chain-run mode with a per-step trace.
+- Smart models (cairn_training): TextClassifier (softmax regression,
+  char n-grams + words, real SGD) trained on bundled corpora — language
+  detector (168 examples, held-out ≥90% asserted) and interpreter
+  (84 examples, 4 intents, ≥70% asserted); PhraseTranslator from 96
+  parallel pairs + lexicon with an honest coverage metric. One-tap
+  training in the Models tab (isolate), saved via SmartModelStore and
+  bindable per pipeline step. Manager = routing layer over the
+  interpreter (labeled as such); LLM slot = the agent's provider model
+  (Gemma-ready via Ollama); Figma agent ships in the chain default
+  project with an honest design-spec prompt (no fake Figma API).

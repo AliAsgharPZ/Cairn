@@ -9,6 +9,7 @@ import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'project_store.dart';
 import 'provider_settings.dart';
+import 'smart_models_section.dart';
 
 /// Model training (M9 / Flow 2): capabilities → data → cleaning report
 /// → splits → tokenizer → architecture → REAL training (the in-app
@@ -514,6 +515,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
       padding: const EdgeInsets.all(CairnSpacing.lg),
       children: [
         Text(s.training, style: theme.textTheme.headlineSmall),
+        const SizedBox(height: CairnSpacing.md),
+        SmartModelsSection(baseDir: widget.baseDir),
         const SizedBox(height: CairnSpacing.xs),
         Text(s.trainIntro, style: theme.textTheme.bodySmall),
         const SizedBox(height: CairnSpacing.sm),

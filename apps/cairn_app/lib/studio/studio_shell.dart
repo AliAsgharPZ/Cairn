@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import '../ui/cairn_theme.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
-import 'agent_editor_screen.dart';
 import 'app_settings.dart';
+import 'project_workspace_screen.dart';
 import 'sync_runner.dart';
 import 'device_identity.dart';
 import 'project_store.dart';
@@ -68,9 +68,9 @@ class _Destination {
 
 List<_Destination> _destinations(S s) => [
   _Destination(s.projects, Icons.folder_outlined),
-  _Destination(s.agentEditor, Icons.smart_toy_outlined),
-  _Destination(s.testConsole, Icons.terminal_outlined),
-  _Destination(s.training, Icons.school_outlined),
+  _Destination(s.wsProject, Icons.account_tree_outlined),
+  _Destination(s.wsRun, Icons.play_circle_outlined),
+  _Destination(s.wsModels, Icons.school_outlined),
   _Destination(s.settings, Icons.settings_outlined),
 ];
 
@@ -216,7 +216,7 @@ class _StudioShellState extends State<StudioShell> {
           ),
         ),
         _KeepAlivePage(
-          child: AgentEditorScreen(
+          child: ProjectWorkspaceScreen(
             store: widget.store,
             project: _selectedProject,
             registry: widget.registry,
@@ -225,6 +225,7 @@ class _StudioShellState extends State<StudioShell> {
             skillStore: widget.skillStore,
             skills: _skills,
             onSkillsChanged: _reloadSkills,
+            baseDir: widget.store.baseDir,
           ),
         ),
         _KeepAlivePage(

@@ -88,6 +88,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   /// Import dialog: lists the archives in the exports folder and imports
   /// the chosen one (validated; id collisions become a copy).
+  /// Creates the ready-made chain project (v1.2) — or opens it when
+  /// it already exists (its id is fixed by design).
+  Future<void> _createChainProject() async {
+    final existing = await widget.store.load('chain-default-project');
+    if (existing != null) {
+      widget.onOpenProject?.call(existing);
+      return;
+    }
+    final project = buildChainDefaultProject();
+    await widget.store.save(project);
+    _reload();
+    widget.onOpenProject?.call(project);
+  }
+
   Future<void> _importProject() async {
     final s = S.of(context);
     final picked = await openFile(
@@ -172,6 +186,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     onPressed: _importProject,
                     icon: const Icon(Icons.file_upload_outlined),
                     label: Text(s.importProject),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _createChainProject,
+                    icon: const Icon(Icons.account_tree_outlined),
+                    label: Text(s.createChainProject),
                   ),
                   FilledButton.icon(
                     onPressed: _createProject,

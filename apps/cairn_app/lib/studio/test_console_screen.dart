@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cairn_core/cairn_core.dart';
+import 'package:cairn_models/cairn_models.dart';
 import 'package:cairn_runtime/cairn_runtime.dart';
 import 'package:cairn_sync/cairn_sync.dart';
 import 'package:cairn_training/cairn_training.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'device_identity.dart';
+import 'pipeline_runner.dart';
 import 'provider_factory.dart';
 import 'provider_settings.dart';
 
@@ -72,9 +74,153 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
   bool _balance = true;
   String? _balanceNote;
 
+  // Chain mode (v1.2): run the project's whole pipeline.
+  bool _chainMode = false;
+  final _chainInput = TextEditingController();
+  bool _chainRunning = false;
+  ChainResult? _chainResult;
+  String? _chainError;
+
+  ProviderConfig? _configForProviderId(String providerId) {
+    for (final c in widget.providerConfigs) {
+      if (c.providerId == providerId) return c;
+    }
+    if (providerId == 'ollama') {
+      return const ProviderConfig(providerId: 'ollama');
+    }
+    return null;
+  }
+
+  ModelProvider? _chainProviderFor(AgentBlueprint agent,
+      {ModelConfig? override}) {
+    final config = _configForProviderId((override ?? agent.model).providerId);
+    if (config == null) return null;
+    return buildProvider(config, widget.keyStore,
+        modelRegistry: widget.modelRegistry);
+  }
+
+  Future<void> _runChain() async {
+    final project = widget.project;
+    final baseDir = widget.baseDir;
+    if (project == null || baseDir == null) return;
+    final input = _chainInput.text.trim();
+    if (input.isEmpty) return;
+    setState(() {
+      _chainRunning = true;
+      _chainResult = null;
+      _chainError = null;
+    });
+    try {
+      final runner = PipelineRunner(
+        smartStore: SmartModelStore(Directory('${baseDir.path}/models')),
+        providerFor: _chainProviderFor,
+        registry: widget.registry,
+        skillRegistry: widget.skillRegistry ?? SkillRegistry(const []),
+      );
+      final result = await runner.run(
+        project: project,
+        input: input,
+        approvalGate: _approvalGate,
+      );
+      if (mounted) setState(() => _chainResult = result);
+    } catch (e) {
+      if (mounted) setState(() => _chainError = '$e');
+    }
+    if (mounted) setState(() => _chainRunning = false);
+  }
+
+  List<Widget> _chainWidgets(ThemeData theme, S s) {
+    final result = _chainResult;
+    return [
+      TextField(
+        controller: _chainInput,
+        minLines: 2,
+        maxLines: 4,
+        enabled: !_chainRunning,
+        decoration: InputDecoration(
+          labelText: s.runChain,
+          hintText: s.chainInputHint,
+        ),
+      ),
+      const SizedBox(height: CairnSpacing.sm),
+      Row(
+        children: [
+          FilledButton.icon(
+            onPressed: _chainRunning ? null : _runChain,
+            icon: const Icon(Icons.play_arrow),
+            label: Text(s.chainRunButton),
+          ),
+          if (_chainRunning) ...[
+            const SizedBox(width: CairnSpacing.md),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ],
+          if (_chainError != null) ...[
+            const SizedBox(width: CairnSpacing.md),
+            Expanded(
+              child: Text(_chainError!,
+                  style: const TextStyle(color: CairnColors.error)),
+            ),
+          ],
+        ],
+      ),
+      const SizedBox(height: CairnSpacing.md),
+      Expanded(
+        child: result == null
+            ? Center(
+                child: Text(s.chainHelp,
+                    style: theme.textTheme.bodySmall,
+                    textAlign: TextAlign.center),
+              )
+            : ListView(
+                children: [
+                  for (final t in result.traces)
+                    if (!t.skipped || t.note != null)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(CairnSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s.stepTitle(t.kind),
+                                  style: theme.textTheme.titleSmall),
+                              if (t.output.isNotEmpty) ...[
+                                const SizedBox(height: CairnSpacing.xs),
+                                Text(t.output),
+                              ],
+                              if (t.note != null) ...[
+                                const SizedBox(height: CairnSpacing.xs),
+                                Text(t.note!,
+                                    style: theme.textTheme.bodySmall),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                  const SizedBox(height: CairnSpacing.sm),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(CairnSpacing.md),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(CairnRadii.md),
+                    ),
+                    child: Text(result.finalText,
+                        style: theme.textTheme.bodyLarge),
+                  ),
+                ],
+              ),
+      ),
+    ];
+  }
+
   @override
   void dispose() {
     _instruction.dispose();
+    _chainInput.dispose();
     _poller?.cancel();
     super.dispose();
   }
@@ -349,6 +495,24 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
             color: CairnColors.accentGold,
           ),
           const SizedBox(height: CairnSpacing.md),
+          if (project.pipeline.isNotEmpty) ...[
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(
+                    value: false,
+                    icon: const Icon(Icons.smart_toy_outlined),
+                    label: Text(s.runAgentMode)),
+                ButtonSegment(
+                    value: true,
+                    icon: const Icon(Icons.account_tree_outlined),
+                    label: Text(s.runChain)),
+              ],
+              selected: {_chainMode},
+              onSelectionChanged: (v) => setState(() => _chainMode = v.first),
+            ),
+            const SizedBox(height: CairnSpacing.md),
+          ],
+          if (!_chainMode) ...[
           Text(
             s.cModelLine(agent.model.providerId, agent.model.modelId),
             style: theme.textTheme.bodySmall,
@@ -449,6 +613,8 @@ class _TestConsoleScreenState extends State<TestConsoleScreen> {
                     },
                   ),
           ),
+          ],
+          if (_chainMode) ..._chainWidgets(theme, s),
         ],
       ),
     );

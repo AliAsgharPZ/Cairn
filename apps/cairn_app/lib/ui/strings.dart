@@ -21,6 +21,76 @@ class S {
 
   // Shell
   String get studio => fa ? 'استودیو' : 'Studio';
+  String get wsProject => fa ? 'پروژه' : 'Project';
+  String get wsChain => fa ? 'زنجیره' : 'Chain';
+  String get wsAgents => fa ? 'ایجنت‌ها' : 'Agents';
+  String get wsRun => fa ? 'اجرا' : 'Run';
+  String get wsModels => fa ? 'مدل‌ها' : 'Models';
+  String get chainTitle => fa ? 'زنجیرهٔ پردازش این پروژه' : 'This project’s processing chain';
+  String get chainHelp => fa
+      ? 'درخواست کاربر از این خط رد می‌شود: هر قدم یک کار دارد و مدل خودش را. مدل هر قدم را می‌توانی عوض کنی — بعداً حتی یک مدل بزرگ مثل Gemma را جای هر کدام بگذاری.'
+      : 'A user request flows down this line: each step has one job and its own model. You can replace any step’s model — later even with a big model like Gemma.';
+  String get chainAddDefault => fa ? 'افزودن زنجیرهٔ پیش‌فرض' : 'Add the default chain';
+  String get chainPickProjectFirst => fa
+      ? 'اول از بخش «پروژه‌ها» یک پروژه را باز کن.'
+      : 'Open a project from “Projects” first.';
+  String stepTitle(String kind) => switch (kind) {
+        'detect' => fa ? '۱) تشخیص زبان' : '1) Language detection',
+        'translateIn' => fa ? '۲) ترجمه به انگلیسی (اگر لازم بود)' : '2) Translate to English (if needed)',
+        'interpret' => fa ? '۳) تفسیر درخواست' : '3) Interpret the request',
+        'manage' => fa ? '۴) مدیر — مسیریابی' : '4) Manager — routing',
+        'agent' => fa ? '۵) اجرای ایجنت' : '5) Agent work',
+        'answer' => fa ? '۶) پاسخ با مدل زبانی' : '6) Answer with the LLM',
+        'translateBack' => fa ? '۷) ترجمهٔ پاسخ به زبان کاربر' : '7) Translate the answer back',
+        _ => kind,
+      };
+  String stepHelp(String kind) => switch (kind) {
+        'detect' => fa
+            ? 'مدل کوچک آموزش‌دیده‌ای که فقط می‌گوید متن فارسی است یا انگلیسی.'
+            : 'A small trained model whose only job is saying whether the text is Persian or English.',
+        'translateIn' => fa
+            ? 'اگر متن فارسی بود، به انگلیسی برش می‌گرداند تا بقیهٔ زنجیره راحت کار کنند.'
+            : 'If the text is Persian, turns it into English so the rest of the chain works easily.',
+        'interpret' => fa
+            ? 'مدل مفسر می‌فهمد کاربر چه می‌خواهد: سؤال، کار، گپ یا ترجمه.'
+            : 'The interpreter model understands what the user wants: a question, a task, chat, or a translation.',
+        'manage' => fa
+            ? 'مغز مسیریاب است، مدل سازنده نیست: از روی حرف مفسر تصمیم می‌گیرد درخواست برود پیش ایجنت یا مدل پاسخ.'
+            : 'The routing brain, not a generative model: from the interpreter’s verdict it sends the request to the agent or to the answer model.',
+        'agent' => fa
+            ? 'ایجنت انتخاب‌شده با ابزارها و مهارت‌هایش کار را انجام می‌دهد (فایل، وب، نرم‌افزارها…).'
+            : 'The chosen agent does the work with its tools and skills (files, web, software…).',
+        'answer' => fa
+            ? 'مدل زبانی بزرگ (LLM) جواب متنی را می‌سازد — همین اسلات بعداً به Gemma وصل می‌شود.'
+            : 'The large language model (LLM) writes the text answer — this very slot later connects to Gemma.',
+        'translateBack' => fa
+            ? 'جواب را به زبان خود کاربر برمی‌گرداند تا به همان زبان ببیندش.'
+            : 'Turns the answer back into the user’s own language.',
+        _ => '',
+      };
+  String get bindingDefault => fa ? 'پیش‌فرض (جدیدترین مدل آموزش‌دیده)' : 'Default (newest trained model)';
+  String get bindingAgent => fa ? 'ایجنت این قدم' : 'Agent for this step';
+  String get createChainProject => fa ? 'ساخت پروژهٔ زنجیره‌ای' : 'Create the chain project';
+  String get smartTitle => fa ? 'مدل‌های زنجیره (کوچک و آموزش‌پذیر)' : 'Chain models (small & trainable)';
+  String get smartHelp => fa
+      ? 'این‌ها مدل‌های کوچیکی‌اند که واقعاً همینجا آموزش می‌بینند و روی دستگاهت ذخیره می‌شوند. کارهای سبک زنجیره را انجام می‌دهند؛ برای کار سنگین (ترجمهٔ واقعی، جواب‌های باهوش) بعداً مدل بزرگ وصل می‌کنی.'
+      : 'These are small models that are genuinely trained right here and stored on your device. They do the chain’s light jobs; heavy work (real translation, smart answers) takes a big model you connect later.';
+  String get trainLangDetect => fa ? 'آموزش مدل تشخیص زبان' : 'Train the language detector';
+  String get trainIntent => fa ? 'آموزش مدل مفسر' : 'Train the interpreter';
+  String get buildTranslator => fa ? 'ساخت مترجم فارسی↔انگلیسی' : 'Build the fa↔en translator';
+  String smartTrained(String acc) => fa ? 'آموزش تمام شد — دقت روی دادهٔ ندیده: $acc' : 'Training done — held-out accuracy: $acc';
+  String smartPairs(int n) => fa ? 'مترجم ساخته شد — $n جفت‌جمله' : 'Translator built — $n sentence pairs';
+  String get smartNone => fa ? 'هنوز مدلی آموزش نداده‌ای.' : 'No smart model trained yet.';
+  String smartMeta(String kind, String metric) => switch (kind) {
+        'langdetect' => fa ? 'تشخیص زبان — دقت $metric' : 'Language detector — accuracy $metric',
+        'intent' => fa ? 'مفسر — دقت $metric' : 'Interpreter — accuracy $metric',
+        'translator' => fa ? 'مترجم — $metric جفت‌جمله' : 'Translator — $metric pairs',
+        _ => kind,
+      };
+  String get runChain => fa ? 'اجرای زنجیره' : 'Run the chain';
+  String get runAgentMode => fa ? 'اجرای ایجنت' : 'Run agent';
+  String get chainInputHint => fa ? 'درخواستت را بنویس (فارسی یا انگلیسی)…' : 'Write your request (Persian or English)…';
+  String get chainRunButton => fa ? 'اجرا در زنجیره' : 'Run through the chain';
   String get projects => fa ? 'پروژه‌ها' : 'Projects';
   String get agentEditor => fa ? 'ویرایشگر ایجنت' : 'Agent Editor';
   String get testConsole => fa ? 'کنسول تست' : 'Test Console';

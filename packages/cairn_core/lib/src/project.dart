@@ -1,5 +1,6 @@
 import 'blueprint.dart';
 import 'ids.dart';
+import 'pipeline.dart';
 
 /// Current project-file schema version.
 const int kProjectSchemaVersion = 1;
@@ -55,12 +56,14 @@ class AgentProject {
     this.description = '',
     List<AgentBlueprint>? agents,
     List<ProjectOutput>? outputs,
+    List<PipelineStep>? pipeline,
     DateTime? createdAt,
     DateTime? updatedAt,
     this.schemaVersion = kProjectSchemaVersion,
   })  : id = id ?? newId(),
         agents = agents ?? [],
         outputs = outputs ?? [],
+        pipeline = pipeline ?? [],
         createdAt = createdAt ?? DateTime.now().toUtc(),
         updatedAt = updatedAt ?? DateTime.now().toUtc();
 
@@ -73,6 +76,11 @@ class AgentProject {
   /// not only a home for agents: training into a project records the
   /// model here.
   final List<ProjectOutput> outputs;
+
+  /// The project's processing chain (v1.2): the connected line of
+  /// models and agents a request flows through. Empty for pre-v1.2
+  /// projects; the workspace offers to add the default chain.
+  final List<PipelineStep> pipeline;
 
   final DateTime createdAt;
   DateTime updatedAt;
@@ -140,6 +148,7 @@ class AgentProject {
         'description': description,
         'agents': agents.map((a) => a.toJson()).toList(),
         'outputs': outputs.map((o) => o.toJson()).toList(),
+        'pipeline': pipeline.map((p) => p.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -155,6 +164,10 @@ class AgentProject {
         outputs: (json['outputs'] as List? ?? const [])
             .map((e) =>
                 ProjectOutput.fromJson((e as Map).cast<String, Object?>()))
+            .toList(),
+        pipeline: (json['pipeline'] as List? ?? const [])
+            .map((e) =>
+                PipelineStep.fromJson((e as Map).cast<String, Object?>()))
             .toList(),
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
