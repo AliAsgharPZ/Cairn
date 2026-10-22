@@ -6,7 +6,7 @@
 ; Build (CI): ISCC /DAppVersion=1.3.0 /DSourceDir=<release dir> cairn.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.3.1"
+  #define AppVersion "1.3.2"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\build\windows\x64\runner\Release"
@@ -20,7 +20,7 @@ AppPublisher=AliAsgharPZ
 DefaultDirName={autopf}\Cairn
 DefaultGroupName=Cairn
 DisableProgramGroupPage=yes
-OutputBaseFilename=Cairn-Setup-v{#AppVersion}
+OutputBaseFilename=cairn-setup-v{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -37,8 +37,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Cairn"; Filename: "{app}\cairn_app.exe"
-Name: "{autodesktop}\Cairn"; Filename: "{app}\cairn_app.exe"; Tasks: desktopicon
+Name: "{group}\Cairn"; Filename: "{app}\Cairn.exe"
+Name: "{autodesktop}\Cairn"; Filename: "{app}\Cairn.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\cairn_app.exe"; Description: "Launch Cairn"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Cairn.exe"; Description: "Launch Cairn"; Flags: nowait postinstall skipifsilent

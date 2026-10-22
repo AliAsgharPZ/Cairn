@@ -1,6 +1,6 @@
 # Build Cairn for Windows on the owner's PC (alternative to the
 # windows-build GitHub Actions workflow). Produces the release folder
-# with cairn_app.exe AND cairn_tool_host.exe side by side — the app
+# with Cairn.exe AND cairn_tool_host.exe side by side — the app
 # spawns the Tool Host at startup and connects over a Named Pipe.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot

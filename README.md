@@ -32,3 +32,12 @@ the local device cannot handle it).
   https://github.com/MohamadDarvishi/Arad — bundled under
   `apps/cairn_app/assets/fonts/arad/` with its license. Latin companion: Inter
   (OFL). See `docs/fonts.md`.
+
+## Downloads
+
+Official builds live on the GitHub **Releases** page (permanent).
+File naming is one convention everywhere — lowercase, versioned:
+
+- `cairn-v<version>-arm64-release.apk` — Android (signed, installs over previous versions)
+- `cairn-setup-v<version>.exe` — Windows installer
+- `cairn-windows-release-v<version>.zip` — Windows portable build

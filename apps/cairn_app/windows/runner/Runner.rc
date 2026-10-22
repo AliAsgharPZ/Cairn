@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "io.cairn" "\0"
-            VALUE "FileDescription", "cairn_app" "\0"
+            VALUE "CompanyName", "AliAsgharPZ" "\0"
+            VALUE "FileDescription", "Cairn" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "cairn_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 io.cairn. All rights reserved." "\0"
-            VALUE "OriginalFilename", "cairn_app.exe" "\0"
-            VALUE "ProductName", "cairn_app" "\0"
+            VALUE "InternalName", "Cairn" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 AliAsgharPZ" "\0"
+            VALUE "OriginalFilename", "Cairn.exe" "\0"
+            VALUE "ProductName", "Cairn" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

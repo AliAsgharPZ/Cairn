@@ -3,7 +3,7 @@
 # sandbox cannot run Gradle (its cross-process loopback TCP is blocked by
 # policy — see PROGRESS.md); CI is the honest build route for binaries until
 # the project is built on a regular machine.
-name: ci
+name: CI
 on:
   push:
     branches: [ main ]

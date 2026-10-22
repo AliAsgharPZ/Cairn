@@ -18,7 +18,7 @@ class ToolHostBoot {
 }
 
 /// Windows startup wiring for the Tool Host (M5 tail): spawn the
-/// bundled `cairn_tool_host.exe` (shipped next to `cairn_app.exe` by
+/// bundled `cairn_tool_host.exe` (shipped next to `Cairn.exe` by
 /// the Windows build) as a child process, talk to it over its stdio
 /// (the framed JSON-RPC protocol — the host writes nothing but
 /// protocol frames to stdout; its diagnostics go to stderr), verify

@@ -1,7 +1,7 @@
 # Builds the Cairn Windows binary on a real Windows runner.
 # The Linux build environment cannot compile Windows Flutter binaries;
 # this workflow (or tools/build_windows.ps1 on the owner's PC) produces them.
-name: windows-build
+name: Windows Build
 on:
   workflow_dispatch:
   push:
