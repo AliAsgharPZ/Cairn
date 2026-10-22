@@ -325,3 +325,16 @@ state hardware limits instead of pretending foundation-scale training.
   integration for the Tool Host pipe (spawn `--pipe` + merge host
   tools at launch) and voice input from Flow 1 are the two items
   beyond v1.0.0's verified scope.
+
+
+## v1.1.4 — WINDOWS FULLY GREEN (2026-10-21 night)
+- windows-build #10 (tag v1.1.4, commit e973658): **SUCCESS** — ToolHost stdio proof
+  ✅ (22s), flutter test **23/23** ✅ (the colon filename fix + doubled widget-test
+  settle budget), Windows release build ✅, Tool Host exe compiled & bundled ✅.
+- Artifact cairn-windows-release.zip: 17,155,546 bytes, **sha256 92c2fee2…**
+  (verified locally against GitHub's digest; contains cairn_app.exe +
+  cairn_tool_host.exe + Arad/Inter). This is the v1.1-series Windows binary with
+  RTL/bilingual UI, capsule nav, auto-sync, load balancing and the roles system.
+- Android: signing still blocked on the GitHub secret VALUES (CI's fast verify
+  step fails in 1s as designed). Re-creating the secrets needs GitHub's sudo
+  email code from the owner; the first update attempt died waiting for it.
