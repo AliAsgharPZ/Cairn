@@ -403,3 +403,19 @@ for real.
   interpreter (labeled as such); LLM slot = the agent's provider model
   (Gemma-ready via Ollama); Figma agent ships in the chain default
   project with an honest design-spec prompt (no fake Figma API).
+
+### v1.2.0 DELIVERED (2026-10-22, commit 0e10f7c, tag v1.2.0)
+CI #59 fully green (dart-packages incl. the live-UDP discovery test on a
+real runner, flutter-app 26/26, android-apk, android-release-apk with
+"SIGNING VERIFY OK"); windows-build #13 green (26/26 tests, cairn_app.exe
++ cairn_tool_host.exe). First CI round (#58/#12) failed ONE test — the
+chain test caught the phrase translator lowercasing passthrough words
+("Paris" → "paris"); fixed in the translator (case-preserving
+passthrough + sentence case), verified locally via a standalone repro
+(final chain output "Paris هست the capital of France."), then green.
+Artifacts digest-matched against GitHub (APK artifact zip 9e9107c9…,
+windows zip e862c7a9…). Release APK v1.2.0 arm64: 20,905,581 bytes,
+sha256 c079b06a…, apksigner-verified signer cert 589ac4da… == the
+dedicated keystore. Windows zip: 17,271,640 bytes, sha256 e862c7a9…
+Delivered via Muse storage links expiring 2026-10-24 11:50 Tehran.
+Installs OVER v1.1.5 as a normal update (same signing key).
