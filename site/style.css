@@ -158,6 +158,13 @@ a:hover { text-decoration: underline; }
   font-size: 14.5px;
   color: var(--muted);
 }
+.hero-cta2 { margin-top: 12px; }
+.platform-note {
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 680px;
+}
 
 /* ——— Buttons (Oracle: charcoal, radius 4, no shadow) ——— */
 .btn {

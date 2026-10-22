@@ -1,4 +1,4 @@
-# Cairn — AI Agent & Model Studio for Android and Windows
+# Cairn — AI Agent & Model Studio for Android, Windows, Linux, macOS and iOS
 
 **Cairn is a graphical studio for building your own AI agents and models.**
 Design a flowchart, connect any model to each step — any open-source model
@@ -6,16 +6,17 @@ Design a flowchart, connect any model to each step — any open-source model
 No ready-made agents, no bundled datasets: Cairn ships empty, everything in it
 is yours.
 
-Runs as **one identical, full studio on Android and Windows**. The two devices
-are symmetric peers: they sync two-way and share compute (a step moves to the
-paired device only as overflow, when the local device can't handle it —
-home LAN first, internet last).
+Runs as **one identical, full studio on Android, Windows, Linux, macOS and
+iOS** — the same codebase on every platform. Your devices are symmetric
+peers: they sync two-way and share compute (a step moves to a paired device
+only as overflow, when the local device can't handle it — home LAN first,
+internet last).
 
 <p>
   <a href="https://github.com/AliAsgharPZ/Cairn/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/AliAsgharPZ/Cairn?label=latest%20release"></a>
   <a href="https://github.com/AliAsgharPZ/Cairn/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/AliAsgharPZ/Cairn/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/AliAsgharPZ/Cairn/actions/workflows/windows-build.yml"><img alt="Windows Build status" src="https://github.com/AliAsgharPZ/Cairn/actions/workflows/windows-build.yml/badge.svg"></a>
-  <img alt="Platforms: Android and Windows" src="https://img.shields.io/badge/platforms-Android%20%7C%20Windows-312d2a">
+  <img alt="Platforms: Android, Windows, Linux, macOS, iOS" src="https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20iOS-312d2a">
 </p>
 
 ## ⬇️ Download
@@ -25,6 +26,9 @@ home LAN first, internet last).
 | **Android** | `cairn-v<version>-arm64-release.apk` (signed; installs over previous versions) | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 | **Windows (installer)** | `cairn-setup-v<version>.exe` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 | **Windows (portable)** | `cairn-windows-release-v<version>.zip` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Linux (x64)** | `cairn-v<version>-linux-x64.tar.gz` — extract, run `./cairn` (needs GTK 3) | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **macOS (universal)** | `cairn-v<version>-macos.dmg` / `.zip` — not notarized; first launch: right-click → Open | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **iOS (unsigned)** | `cairn-v<version>-ios-unsigned.ipa` — sideload with your own Apple ID (AltStore/SideStore) or sign it yourself | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 
 🌐 **Website:** https://cairn-abg.pages.dev — downloads and project overview.
 All official builds live on the [Releases](https://github.com/AliAsgharPZ/Cairn/releases)
@@ -101,4 +105,4 @@ there too — nothing is presented as done before it is tested.
 **Keywords:** AI agent studio · build your own AI agent · visual agent
 flowchart · LLM orchestration · Ollama GUI · Gemma · OpenAI-compatible ·
 Anthropic · model roles · peer-to-peer sync · load-balanced overflow ·
-Android · Windows · Flutter · Dart · Persian (فارسی) · ساخت ایجنت هوش مصنوعی
+Android · Windows · Linux · macOS · iOS · Flutter · Dart · Persian (فارسی) · ساخت ایجنت هوش مصنوعی

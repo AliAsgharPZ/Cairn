@@ -469,3 +469,26 @@ selected. Done:
 - Capsule nav: uniform 5px inner padding + fixed-height pills —
   edge selections no longer stick to the capsule wall; geometry
   test asserts the inset at phone size.
+
+## v0.5.0 — Linux, macOS, iOS (2026-10-22)
+
+- Same studio, same codebase, now five platforms: Android, Windows,
+  Linux, macOS, iOS. Platform folders scaffolded and hand-configured
+  where networking depends on it: macOS Release.entitlements carry
+  network.client + network.server (a sandboxed release without them
+  cannot sync at all); iOS Info.plist carries
+  NSLocalNetworkUsageDescription (iOS silently blocks LAN sockets
+  without it); bundle ids io.cairn.cairnApp; real Cairn icons on
+  iOS/macOS; Linux binary named `cairn`. Windows Tool Host spawn
+  stays behind Platform.isWindows — other platforms run tools
+  locally.
+- New "Platforms Build" workflow (tags + dispatch): Linux tar.gz,
+  macOS zip + dmg (universal), unsigned iOS IPA for sideloading.
+  CI #73 + Windows Build #21 + Platforms Build #1 all green
+  (158 package tests, 31 app tests on every platform job,
+  SIGNING VERIFY OK).
+- Honest limits: macOS build is not notarized (right-click → Open on
+  first launch); iOS IPA is unsigned (sideload with your own Apple
+  ID or sign it yourself). No web build: the studio's core is
+  dart:io (files, sockets, processes) — a browser build would be a
+  different, reduced app, not this studio.

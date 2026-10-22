@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cairn — AI Agent & Model Studio for Android and Windows | Download</title>
-<meta name="description" content="Cairn is a graphical studio for building your own AI agents and models: design a flowchart, connect any open-source model (Ollama, Gemma, …) or any AI API to each step. Free download for Android and Windows.">
+<meta name="description" content="Cairn is a graphical studio for building your own AI agents and models: design a flowchart, connect any open-source model (Ollama, Gemma, …) or any AI API to each step. Free download for Android, Windows, Linux, macOS and iOS.">
 <meta name="keywords" content="Cairn, AI agent studio, build AI agents, AI model builder, agent flowchart, Ollama GUI, Gemma, OpenAI-compatible, Anthropic, download Cairn, کایرن, ساخت ایجنت هوش مصنوعی">
 <meta name="author" content="AliAsgharPZ">
 <meta name="robots" content="index, follow">
@@ -31,11 +31,11 @@
   "name": "Cairn",
   "alternateName": "کایرن",
   "applicationCategory": "DeveloperApplication",
-  "operatingSystem": ["Android", "Windows"],
+  "operatingSystem": ["Android", "Windows", "Linux", "macOS", "iOS"],
   "description": "A GUI studio for building AI agents and models: define a flowchart, connect any open-source model or AI API to each step, on Android and Windows with peer-to-peer sync.",
   "url": "https://cairn-abg.pages.dev/",
   "downloadUrl": "https://github.com/AliAsgharPZ/Cairn/releases/latest",
-  "softwareVersion": "0.4.0",
+  "softwareVersion": "0.5.0",
   "author": { "@type": "Person", "name": "AliAsgharPZ" },
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
 }
@@ -63,7 +63,7 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <p class="kicker" data-i18n="kicker">An AI studio — Android &amp; Windows</p>
+      <p class="kicker" data-i18n="kicker">An AI studio — Android, Windows, Linux, macOS &amp; iOS</p>
       <h1><span data-i18n="h1a">Build your own</span> <em data-i18n="h1b">AI agents &amp; models</em></h1>
       <div class="gold-rule" aria-hidden="true"></div>
       <p class="lede" data-i18n="lede">
@@ -77,6 +77,12 @@
         <a class="btn btn-primary" id="dl-setup" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlSetup">Download for Windows (installer)</a>
         <a class="btn btn-ghost" id="dl-zip" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlZip">Windows portable (ZIP)</a>
       </div>
+      <div class="hero-cta hero-cta2">
+        <a class="btn btn-primary" id="dl-linux" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlLinux">Download for Linux (tar.gz)</a>
+        <a class="btn btn-primary" id="dl-macos" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlMacos">Download for macOS (DMG)</a>
+        <a class="btn btn-ghost" id="dl-ios" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlIos">iOS (unsigned IPA)</a>
+      </div>
+      <p class="platform-note" data-i18n="platformNote">macOS builds are not notarized yet — on first launch, right-click the app → Open. The iOS build is unsigned, for sideloading with your own Apple ID (e.g. AltStore / SideStore).</p>
       <p class="version-line">
         <span id="version-info" data-i18n="versionFallback">Get the latest version from the releases page</span>
         ·
@@ -184,7 +190,9 @@
 // (RTL, Arad) only when the visitor's browser language is Persian.
 var FA = {
   navDownload: 'دانلود', navFeatures: 'امکانات', navHow: 'چطور کار می‌کند؟',
-  kicker: 'استودیوی هوش مصنوعی — اندروید و ویندوز',
+  kicker: 'استودیوی هوش مصنوعی — اندروید، ویندوز، لینوکس، مک و iOS',
+  dlLinux: 'دانلود لینوکس (tar.gz)', dlMacos: 'دانلود مک (DMG)', dlIos: 'آیفون (IPA بدون امضا)',
+  platformNote: 'نسخهٔ مک هنوز notarize نشده — بار اول روی اپ راست‌کلیک و Open را بزنید. نسخهٔ آیفون بدون امضاست و با Apple ID خودتان سایدلود می‌شود (مثل AltStore یا SideStore).',
   h1a: 'ایجنت و مدل هوش مصنوعیِ', h1b: 'خودت را بساز',
   lede: 'Cairn یک استودیوی گرافیکی است، نه یک چت‌بات آماده. فلوچارت پروژه را خودت می‌چینی و برای هر قدم، مدل دلخواهت را وصل می‌کنی — هر مدل متن‌باز یا هر API. هیچ مدل و ایجنت آماده‌ای داخلش نیست؛ همه‌چیز ساختهٔ خودت است.',
   dlApk: 'دانلود اندروید (APK)', dlSetup: 'دانلود ویندوز (نصب‌کننده)', dlZip: 'نسخهٔ پرتابل ویندوز (ZIP)',
@@ -246,6 +254,12 @@ fetch('https://api.github.com/repos/AliAsgharPZ/Cairn/releases/latest')
     if (apk) document.getElementById('dl-apk').href = apk.browser_download_url;
     if (setup) document.getElementById('dl-setup').href = setup.browser_download_url;
     if (zip) document.getElementById('dl-zip').href = zip.browser_download_url;
+    var linux = rel.assets.find(function (a) { return a.name.endsWith('linux-x64.tar.gz'); });
+    var macos = rel.assets.find(function (a) { return a.name.endsWith('.dmg'); });
+    var ios = rel.assets.find(function (a) { return a.name.endsWith('.ipa'); });
+    if (linux) document.getElementById('dl-linux').href = linux.browser_download_url;
+    if (macos) document.getElementById('dl-macos').href = macos.browser_download_url;
+    if (ios) document.getElementById('dl-ios').href = ios.browser_download_url;
     var info = document.getElementById('version-info');
     if (info && rel.tag_name) {
       info.textContent = L.versionPrefix + rel.tag_name.replace(/^v/, '') +
