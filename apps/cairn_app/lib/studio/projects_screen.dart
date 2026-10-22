@@ -2,6 +2,7 @@ import 'package:cairn_core/cairn_core.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/motion.dart';
 import '../ui/strings.dart';
 import '../ui/tokens.dart';
 import 'project_store.dart';
@@ -237,7 +238,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       const SizedBox(height: CairnSpacing.sm),
                   itemBuilder: (context, i) {
                     final project = projects[i];
-                    return Card(
+                    return FadeSlideIn(
+                      delay: Duration(milliseconds: 45 * (i > 8 ? 8 : i)),
+                      child: Card(
                       child: ListTile(
                         title: Text(project.name),
                         subtitle: Text(
@@ -273,6 +276,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           ],
                         ),
                         onTap: () => widget.onOpenProject?.call(project),
+                      ),
                       ),
                     );
                   },

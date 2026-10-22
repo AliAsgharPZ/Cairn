@@ -95,7 +95,7 @@ class _StudioShellState extends State<StudioShell> {
     setState(() => _index = index);
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutCubic,
     );
   }
@@ -267,13 +267,22 @@ class _StudioShellState extends State<StudioShell> {
     );
   }
 
-  /// The floating capsule navigation bar (compact widths): a rounded
-  /// pill with a hairline border (Oracle: depth is tonal, no shadows);
-  /// the selected destination expands into a filled pill with its
-  /// label, animated by [AnimatedContainer].
+  /// The floating capsule navigation bar (compact widths).
+  ///
+  /// v1.2 fix for the Android display bug the owner reported: the
+  /// selected destination's label is LONG in Persian («ویرایشگر ایجنت»)
+  /// and the old layout put icon+label in a plain Row inside an
+  /// Expanded cell — on narrow Android screens the row overflowed its
+  /// cell and the pill rendered broken/clipped. Now every cell is
+  /// overflow-proof: the label is Flexible with ellipsis AND the cell
+  /// content is wrapped in a scale-down FittedBox, the pill is
+  /// width-capped and centered, and SafeArea only guards the bottom
+  /// (Scaffold already insets the bar's top). Selection animates:
+  /// the filled pill grows, the icon pops, the label fades/slides in.
   Widget _capsuleNav(BuildContext context, List<_Destination> destinations) {
     final scheme = Theme.of(context).colorScheme;
     return SafeArea(
+      top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           CairnSpacing.md,
@@ -281,62 +290,104 @@ class _StudioShellState extends State<StudioShell> {
           CairnSpacing.md,
           CairnSpacing.sm,
         ),
-        child: Container(
-          height: 62,
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(31),
-            border: Border.all(color: scheme.outline),
-          ),
-          child: Row(
-            children: [
-              for (var i = 0; i < destinations.length; i++)
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(31),
-                    onTap: () => _goTo(i),
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: i == _index ? 14 : 10,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: i == _index
-                              ? scheme.primary
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              destinations[i].icon,
-                              size: 21,
-                              color: i == _index
-                                  ? scheme.onPrimary
-                                  : scheme.onSurface,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Container(
+              height: 62,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(31),
+                border: Border.all(color: scheme.outline),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(31),
+                        onTap: () => _goTo(i),
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutCubic,
+                            margin:
+                                const EdgeInsets.symmetric(horizontal: 3),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: i == _index ? 12 : 9,
+                              vertical: 9,
                             ),
-                            if (i == _index) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                destinations[i].label,
-                                style: TextStyle(
-                                  color: scheme.onPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            decoration: BoxDecoration(
+                              color: i == _index
+                                  ? scheme.primary
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AnimatedScale(
+                                    scale: i == _index ? 1.12 : 1.0,
+                                    duration:
+                                        const Duration(milliseconds: 260),
+                                    curve: Curves.easeOutBack,
+                                    child: Icon(
+                                      destinations[i].icon,
+                                      size: 21,
+                                      color: i == _index
+                                          ? scheme.onPrimary
+                                          : scheme.onSurface,
+                                    ),
+                                  ),
+                                  AnimatedSize(
+                                    duration:
+                                        const Duration(milliseconds: 260),
+                                    curve: Curves.easeOutCubic,
+                                    child: i == _index
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const SizedBox(width: 6),
+                                              ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                        maxWidth: 92),
+                                                child: Text(
+                                                  destinations[i].label,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: scheme.onPrimary,
+                                                    fontSize: 12.5,
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
