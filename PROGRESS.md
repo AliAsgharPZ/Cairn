@@ -338,3 +338,28 @@ state hardware limits instead of pretending foundation-scale training.
 - Android: signing still blocked on the GitHub secret VALUES (CI's fast verify
   step fails in 1s as designed). Re-creating the secrets needs GitHub's sudo
   email code from the owner; the first update attempt died waiting for it.
+
+
+## v1.1.5 — SIGNED RELEASE DELIVERED; v1.1 BATCH COMPLETE (2026-10-22)
+- Signing saga closed: the three GitHub secrets were re-created with exact
+  values (KEYSTORE_BASE64 sent in 4 file-exact chunks, field-verified at
+  exactly 3464 chars; GitHub sudo email code supplied via the owner's Gmail).
+- CI #53 (ac2deeb) FULLY GREEN: dart-packages ✅, flutter-app ✅, android-apk ✅,
+  android-release-apk ✅ — verify step printed "SIGNING VERIFY OK" + cert
+  SHA256 58:9A:C4:DA:...; windows-build #11 ✅.
+- Release APK v1.1.5 (arm64): 20,708,397 bytes, sha256 812ecdfd... — signature
+  verified DIRECTLY with apksigner: signer cert SHA-256 digest
+  589ac4da54e134b6... == the dedicated cairn keystore cert. Delivered via
+  Muse storage (link expires 2026-10-24 09:05 Tehran).
+- Windows v1.1.5 zip: 17,155,547 bytes, sha256 de9db289... (digest-verified),
+  delivered via Muse storage (same expiry).
+- The v1.1 feedback batch is now fully shipped: RTL/bilingual, light+dark,
+  real Settings with Devices inside, auto-sync + header button, capsule nav,
+  fixed import + Flow-1 default project, name "cairn" + custom icon, real
+  release signing, Flow-1 roles with per-role models, simplified training,
+  multi-directional load balancing, projects producing models.
+- Standing notes: the first signed APK does not install over the debug-signed
+  v1.0.0 (export → uninstall → install once); future updates install over it.
+  Honest remainders: training screen dynamic status sentences are Persian-only;
+  Flow-1 voice input still unscheduled (post-v1); named-pipe Tool Host
+  transport remains an unverified experimental option (stdio is shipped).
