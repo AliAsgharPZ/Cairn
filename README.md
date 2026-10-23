@@ -23,11 +23,14 @@ internet last).
 
 | Platform | File | Get it |
 |---|---|---|
-| **Android** | `cairn-v<version>-arm64-release.apk` (signed; installs over previous versions) | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
-| **Windows (installer)** | `cairn-setup-v<version>.exe` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
-| **Windows (portable)** | `cairn-windows-release-v<version>.zip` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
-| **Linux (x64)** | `cairn-v<version>-linux-x64.tar.gz` — extract, run `./cairn` (needs GTK 3) | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
-| **macOS (universal)** | `cairn-v<version>-macos.dmg` / `.zip` — not notarized; first launch: right-click → Open | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Android (universal)** | `cairn-v<version>-universal-release.apk` — one signed APK for **all CPUs** (arm64-v8a + armeabi-v7a + x86_64); installs over previous versions | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Windows x64 (installer)** | `cairn-setup-v<version>.exe` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Windows x64 (portable)** | `cairn-windows-release-v<version>.zip` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Windows ARM64 (installer)** | `cairn-setup-v<version>-arm64.exe` — native ARM64 build | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Windows ARM64 (portable)** | `cairn-windows-arm64-release-v<version>.zip` | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Linux x64** | `cairn-v<version>-linux-x64.tar.gz` — extract, run `./cairn` (needs GTK 3) | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **Linux ARM64** | `cairn-v<version>-linux-arm64.tar.gz` — native ARM64 bundle | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
+| **macOS (universal)** | `cairn-v<version>-macos.dmg` / `.zip` — one binary for Apple silicon + Intel; not notarized; first launch: right-click → Open | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 | **iOS (unsigned)** | `cairn-v<version>-ios-unsigned.ipa` — sideload with your own Apple ID (AltStore/SideStore) or sign it yourself | [Latest release](https://github.com/AliAsgharPZ/Cairn/releases/latest) |
 
 🌐 **Website:** https://cairn-abg.pages.dev — downloads and project overview.
