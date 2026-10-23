@@ -64,9 +64,12 @@ jobs:
     runs-on: windows-11-arm
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+      - name: Install Flutter SDK (manual — flutter-action cannot resolve arm64)
+        shell: pwsh
+        run: |
+          git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$env:RUNNER_TEMP\flutter"
+          echo "$env:RUNNER_TEMP\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          & "$env:RUNNER_TEMP\flutter\bin\flutter.bat" --version
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
       - name: Test
