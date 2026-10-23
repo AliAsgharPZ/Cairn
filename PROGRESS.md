@@ -492,3 +492,14 @@ selected. Done:
   ID or sign it yourself). No web build: the studio's core is
   dart:io (files, sockets, processes) — a browser build would be a
   different, reduced app, not this studio.
+
+## v0.5.1 — universal binaries for every CPU (2026-10-23)
+
+- Owner's order: every platform universal for every processor.
+  Android ships ONE universal APK (arm64-v8a + armeabi-v7a + x86_64
+  in a single signed file). Windows gains a native ARM64 build
+  (windows-11-arm runner: Cairn.exe + Tool Host + -arm64 installer)
+  next to x64. Linux gains a native ARM64 bundle (ubuntu-24.04-arm)
+  next to x64. macOS was already a universal Mach-O (x86_64 +
+  arm64 — verified with `file` on the shipped 0.5.0 binary). iOS is
+  arm64, the only architecture iPhones have.

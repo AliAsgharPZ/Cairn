@@ -98,3 +98,15 @@ jobs:
         with:
           name: cairn-release-apk-arm64
           path: apps/cairn_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      - name: Build UNIVERSAL release APK (all ABIs in one file)
+        working-directory: apps/cairn_app
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: flutter build apk --release
+      - name: Upload universal release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-release-apk-universal
+          path: apps/cairn_app/build/app/outputs/flutter-apk/app-release.apk

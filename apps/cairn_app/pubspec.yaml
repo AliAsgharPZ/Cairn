@@ -1,7 +1,7 @@
 name: cairn_app
 description: "Cairn — a graphical studio for developing AI agents. One identical full studio on Android and Windows, with two-way peer sync and compute overflow."
 publish_to: 'none'
-version: 0.5.0+13
+version: 0.5.1+14
 
 environment:
   sdk: ^3.13.5

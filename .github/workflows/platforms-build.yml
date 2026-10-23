@@ -16,6 +16,8 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      LINUX_ARCH: x64
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -37,18 +39,19 @@ jobs:
       - name: Package (tar.gz with .desktop entry + icon)
         run: |
           VER=$(grep '^version:' apps/cairn_app/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
-          BUNDLE=apps/cairn_app/build/linux/x64/release/bundle
+          BUNDLE=$(ls -d apps/cairn_app/build/linux/*/release/bundle)
+          file "$BUNDLE/cairn"
           cp apps/cairn_app/linux/icon.png "$BUNDLE/icon.png"
           printf '%s\n' '[Desktop Entry]' 'Name=Cairn' 'Comment=AI agent & model studio' \
             'Exec=cairn' 'Icon=icon' 'Terminal=false' 'Type=Application' \
             'Categories=Development;' > "$BUNDLE/cairn.desktop"
-          tar -czf "cairn-v${VER}-linux-x64.tar.gz" -C "$BUNDLE" .
-          ls -la "cairn-v${VER}-linux-x64.tar.gz"
+          tar -czf "cairn-v${VER}-linux-${{ env.LINUX_ARCH }}.tar.gz" -C "$BUNDLE" .
+          ls -la "cairn-v${VER}-linux-${{ env.LINUX_ARCH }}.tar.gz"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: cairn-linux
-          path: cairn-v*-linux-x64.tar.gz
+          path: cairn-v*-linux-${{ env.LINUX_ARCH }}.tar.gz
           if-no-files-found: error
 
   build-macos:
@@ -112,4 +115,46 @@ jobs:
         with:
           name: cairn-ios
           path: cairn-v*-ios-unsigned.ipa
+          if-no-files-found: error
+
+  build-linux-arm64:
+    # Linux on ARM64 (Raspberry Pi, ARM servers/laptops): built
+    # natively on GitHub's ARM runner — a real AArch64 bundle.
+    runs-on: ubuntu-24.04-arm
+    env:
+      LINUX_ARCH: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libsecret-1-dev
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+      - name: Test
+        working-directory: apps/cairn_app
+        run: flutter test
+      - name: Build Linux ARM64 release
+        working-directory: apps/cairn_app
+        run: flutter build linux --release
+      - name: Package (tar.gz with .desktop entry + icon)
+        run: |
+          VER=$(grep '^version:' apps/cairn_app/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          BUNDLE=$(ls -d apps/cairn_app/build/linux/*/release/bundle)
+          file "$BUNDLE/cairn"
+          cp apps/cairn_app/linux/icon.png "$BUNDLE/icon.png"
+          printf '%s\n' '[Desktop Entry]' 'Name=Cairn' 'Comment=AI agent & model studio' \
+            'Exec=cairn' 'Icon=icon' 'Terminal=false' 'Type=Application' \
+            'Categories=Development;' > "$BUNDLE/cairn.desktop"
+          tar -czf "cairn-v${VER}-linux-arm64.tar.gz" -C "$BUNDLE" .
+          ls -la "cairn-v${VER}-linux-arm64.tar.gz"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cairn-linux-arm64
+          path: cairn-v*-linux-arm64.tar.gz
           if-no-files-found: error

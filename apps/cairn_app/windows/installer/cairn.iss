@@ -11,6 +11,9 @@
 #ifndef SourceDir
   #define SourceDir "..\build\windows\x64\runner\Release"
 #endif
+#ifndef AppSuffix
+  #define AppSuffix ""
+#endif
 
 [Setup]
 AppId={{8F3A2B10-CAFE-4DAD-BABE-CA1200001300}
@@ -20,7 +23,7 @@ AppPublisher=AliAsgharPZ
 DefaultDirName={autopf}\Cairn
 DefaultGroupName=Cairn
 DisableProgramGroupPage=yes
-OutputBaseFilename=cairn-setup-v{#AppVersion}
+OutputBaseFilename=cairn-setup-v{#AppVersion}{#AppSuffix}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
