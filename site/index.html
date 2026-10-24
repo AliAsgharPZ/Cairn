@@ -85,6 +85,7 @@
       <div class="hero-cta hero-cta2">
         <a class="btn btn-ghost" id="dl-win-arm" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlWinArm">Windows ARM64 (installer)</a>
         <a class="btn btn-ghost" id="dl-linux-arm" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlLinuxArm">Linux ARM64 (tar.gz)</a>
+        <a class="btn btn-ghost" id="dl-zip-arm" href="https://github.com/AliAsgharPZ/Cairn/releases/latest" rel="noopener" data-i18n="dlZipArm">Windows ARM64 portable (ZIP)</a>
       </div>
       <p class="platform-note" data-i18n="platformNote">macOS builds are not notarized yet — on first launch, right-click the app → Open. The iOS build is unsigned, for sideloading with your own Apple ID (e.g. AltStore / SideStore).</p>
       <p class="version-line">
@@ -197,7 +198,7 @@ var FA = {
   kicker: 'استودیوی هوش مصنوعی — اندروید، ویندوز، لینوکس، مک و iOS',
   dlApk: 'اندروید — APK یونیورسال (همهٔ پردازنده‌ها)',
   dlLinux: 'دانلود لینوکس (tar.gz)', dlMacos: 'مک — یونیورسال (DMG)', dlIos: 'آیفون (IPA بدون امضا)',
-  dlWinArm: 'ویندوز ARM64 (نصب‌کننده)', dlLinuxArm: 'لینوکس ARM64 ‏(tar.gz)',
+  dlWinArm: 'ویندوز ARM64 (نصب‌کننده)', dlLinuxArm: 'لینوکس ARM64 ‏(tar.gz)', dlZipArm: 'ویندوز ARM64 پرتابل (ZIP)',
   platformNote: 'نسخهٔ مک هنوز notarize نشده — بار اول روی اپ راست‌کلیک و Open را بزنید. نسخهٔ آیفون بدون امضاست و با Apple ID خودتان سایدلود می‌شود (مثل AltStore یا SideStore).',
   h1a: 'ایجنت و مدل هوش مصنوعیِ', h1b: 'خودت را بساز',
   lede: 'Cairn یک استودیوی گرافیکی است، نه یک چت‌بات آماده. فلوچارت پروژه را خودت می‌چینی و برای هر قدم، مدل دلخواهت را وصل می‌کنی — هر مدل متن‌باز یا هر API. هیچ مدل و ایجنت آماده‌ای داخلش نیست؛ همه‌چیز ساختهٔ خودت است.',
@@ -260,10 +261,12 @@ fetch('https://api.github.com/repos/AliAsgharPZ/Cairn/releases/latest')
     var linuxArm = rel.assets.find(function (a) { return a.name.endsWith('linux-arm64.tar.gz'); });
     if (winArm) document.getElementById('dl-win-arm').href = winArm.browser_download_url;
     if (linuxArm) document.getElementById('dl-linux-arm').href = linuxArm.browser_download_url;
-    var zip = rel.assets.find(function (a) { return a.name.indexOf('windows') >= 0 && a.name.endsWith('.zip'); });
+    var zip = rel.assets.find(function (a) { return a.name.indexOf('windows') >= 0 && a.name.indexOf('arm64') < 0 && a.name.endsWith('.zip'); });
+    var zipArm = rel.assets.find(function (a) { return a.name.indexOf('windows') >= 0 && a.name.indexOf('arm64') >= 0 && a.name.endsWith('.zip'); });
     if (apk) document.getElementById('dl-apk').href = apk.browser_download_url;
     if (setup) document.getElementById('dl-setup').href = setup.browser_download_url;
     if (zip) document.getElementById('dl-zip').href = zip.browser_download_url;
+    if (zipArm) document.getElementById('dl-zip-arm').href = zipArm.browser_download_url;
     var linux = rel.assets.find(function (a) { return a.name.endsWith('linux-x64.tar.gz'); });
     var macos = rel.assets.find(function (a) { return a.name.endsWith('.dmg'); });
     var ios = rel.assets.find(function (a) { return a.name.endsWith('.ipa'); });
